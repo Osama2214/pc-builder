@@ -11,3 +11,74 @@ http://localhost:5501
 
 admin@example.com
 password123
+
+
+أول مرة فقط (لكل عضو في التيم)
+
+استنساخ المشروع:
+
+git clone https://github.com/Osama2214/pc-builder.git
+cd pc-builder
+
+التأكد إنه على develop:
+
+git checkout develop
+git pull origin develop
+قبل ما يبدأ أي Feature جديدة
+
+يجيب آخر تحديثات:
+
+git checkout develop
+git pull origin develop
+
+يعمل Branch جديد:
+
+git checkout -b feature/login
+
+أمثلة:
+
+feature/auth
+feature/cart
+feature/payment
+feature/frontend-home
+feature/admin-dashboard
+feature/profile
+feature/search
+أثناء الشغل
+
+يحفظ التعديلات:
+
+git add .
+git commit -m "Add login page"
+
+يرفع الـ Branch:
+
+git push origin feature/login
+بعد ما يخلص
+
+يدخل GitHub ويعمل:
+
+Pull Request
+
+من:
+
+feature/login
+
+إلى:
+
+develop
+
+وبعدين حد من التيم يراجع الكود ويعمل Merge.
+
+كل يوم قبل ما يشتغل
+git checkout develop
+git pull origin develop
+
+ولو كان شغال على Branch:
+
+git checkout feature/login
+git merge develop
+
+أو:
+
+git rebase develop
