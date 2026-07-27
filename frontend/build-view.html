@@ -1,0 +1,108 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Shared Build — PC Builder</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <div class="page">
+    <div class="container">
+      <div id="build-state" class="state-message">Loading build...</div>
+
+      <div id="build-layout" class="build-layout hidden">
+        <div>
+          <h1 id="build-name"></h1>
+          <div id="slots-container"></div>
+        </div>
+
+        <div class="summary-panel">
+          <h3>Summary</h3>
+          <div class="summary-stat"><span>Total price</span><span id="summary-price"></span></div>
+          <div class="summary-stat"><span>Estimated power</span><span id="summary-power"></span></div>
+          <div class="summary-stat"><span>Compatibility</span><span id="summary-compat" class="status-badge"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/format.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/cart-drawer.js"></script>
+  <script src="js/custom-select.js"></script>
+  <script src="js/toast.js"></script>
+  <script src="js/build-slots.js"></script>
+  <script>
+    const token = new URLSearchParams(window.location.search).get("token");
+    const stateEl = document.getElementById("build-state");
+
+    async function init() {
+      if (!token) {
+        stateEl.textContent = "No build link specified.";
+        return;
+      }
+
+      try {
+        const result = await apiRequest(`/builds/shared/${token}`, { auth: false });
+        render(result.data);
+      } catch (error) {
+        stateEl.textContent = error.status === 404
+          ? "This build isn't available — it may be private or the link is wrong."
+          : (error.message || "Could not load this build.");
+      }
+    }
+
+    function render(build) {
+      stateEl.classList.add("hidden");
+      document.getElementById("build-layout").classList.remove("hidden");
+      document.getElementById("build-name").textContent = build.name || "Untitled build";
+
+      document.getElementById("slots-container").innerHTML = BUILD_SLOTS.map((slot) => renderSlotCard(slot, build)).join("");
+
+      document.getElementById("summary-price").textContent = formatPrice(build.total_price);
+      document.getElementById("summary-power").textContent = `${build.estimated_power ?? 0} W`;
+
+      const compatEl = document.getElementById("summary-compat");
+      compatEl.textContent = capitalize(build.compatibility_status);
+      compatEl.className = `status-badge status-${build.compatibility_status}`;
+    }
+
+    function renderSlotCard(slot, build) {
+      const items = build.items.filter((i) => i.slot === slot.key);
+      const header = `<div class="slot-card-header"><span class="slot-label">${slot.label}</span></div>`;
+
+      if (items.length === 0) {
+        return `<div class="slot-card">${header}<div class="slot-empty"><span>Not selected</span></div></div>`;
+      }
+
+      const rows = items
+        .map((item) => {
+          const itemImageUrl = getProductImageUrl(item.product);
+          const thumb = itemImageUrl ? `<img src="${escapeHtml(itemImageUrl)}" alt="" />` : "No image";
+          const price = item.product.sale_price ?? item.product.price;
+
+          return `
+            <a href="product.html?id=${item.product.id}" class="slot-item-row" style="text-decoration:none;color:inherit;">
+              <div class="slot-item-thumb">${thumb}</div>
+              <div class="slot-item-info">
+                <div class="slot-item-name">${escapeHtml(item.product.name)}${slot.multi ? ` × ${item.quantity}` : ""}</div>
+                <div class="slot-item-price">${formatPrice(price)}</div>
+              </div>
+            </a>
+          `;
+        })
+        .join("");
+
+      return `<div class="slot-card">${header}${rows}</div>`;
+    }
+
+    init();
+  </script>
+</body>
+</html>

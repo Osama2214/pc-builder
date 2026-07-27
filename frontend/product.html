@@ -1,0 +1,792 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Product — PC Builder</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <div class="page">
+    <div class="container">
+      <div id="product-state" class="state-message">Loading product...</div>
+
+      <div id="product-detail" class="product-detail hidden">
+        <div>
+          <div class="product-gallery-main" id="gallery-main">No image</div>
+          <div class="gallery-thumbs hidden" id="gallery-thumbs"></div>
+        </div>
+
+        <div>
+          <div class="product-card-meta" id="product-brand"></div>
+          <h1 id="product-name"></h1>
+          <div id="product-stock"></div>
+          <div class="product-card-price-row" id="product-price" style="margin-top: 12px;"></div>
+          <p id="product-description"></p>
+
+          <div class="action-row">
+            <button type="button" class="btn" id="add-to-cart-btn">Add to Cart</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="add-to-wishlist-btn">Add to Wishlist</button>
+          </div>
+          <button type="button" class="btn btn-buy-now" id="buy-now-btn">Buy Now</button>
+          <div class="field-error" id="action-message"></div>
+
+          <div class="warranty-badge hidden" id="warranty-badge">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            <span id="warranty-badge-text"></span>
+          </div>
+
+          <table class="spec-table" id="spec-table"></table>
+          <button type="button" class="link-btn hidden" id="spec-toggle-btn">Show more</button>
+        </div>
+      </div>
+
+      <div class="section-card hidden" id="reviews-section">
+        <div class="tabs">
+          <button type="button" class="tab-btn active" id="tab-btn-reviews">Reviews</button>
+          <button type="button" class="tab-btn" id="tab-btn-comparison">Comparison</button>
+          <button type="button" class="tab-btn hidden" id="tab-btn-benchmarks">Benchmarks</button>
+        </div>
+
+        <div id="reviews-tab-panel">
+          <div id="review-form-wrapper" class="hidden">
+            <h3>Write a review</h3>
+            <div class="alert" id="review-success" style="background: rgba(34,197,94,0.12); color: #4ade80; border: 1px solid rgba(34,197,94,0.35); display:none;"></div>
+            <form id="review-form" novalidate>
+              <div class="alert alert-danger hidden"></div>
+
+              <div class="field">
+                <label>Rating</label>
+                <div class="star-rating-input" id="rating-stars">
+                  <button type="button" class="star-btn" data-value="1" aria-label="1 star">★</button>
+                  <button type="button" class="star-btn" data-value="2" aria-label="2 stars">★</button>
+                  <button type="button" class="star-btn" data-value="3" aria-label="3 stars">★</button>
+                  <button type="button" class="star-btn" data-value="4" aria-label="4 stars">★</button>
+                  <button type="button" class="star-btn" data-value="5" aria-label="5 stars">★</button>
+                </div>
+                <input type="hidden" id="rating" name="rating" value="5" required />
+                <div class="field-error" data-error-for="rating"></div>
+              </div>
+              <div class="field">
+                <label for="comment">Comment (optional)</label>
+                <textarea id="comment" name="comment"></textarea>
+                <div class="field-error" data-error-for="comment"></div>
+              </div>
+              <button type="submit" class="btn btn-auto" id="review-submit">Submit review</button>
+            </form>
+          </div>
+          <p id="review-login-hint" class="hidden">
+            <a href="login.html">Log in</a> to write a review.
+          </p>
+
+          <div id="reviews-list" class="state-message" style="margin-top: 24px;">Loading reviews...</div>
+          <button type="button" class="link-btn hidden" id="reviews-toggle-btn">Show more</button>
+        </div>
+
+        <div id="comparison-tab-panel" class="hidden">
+          <div id="cmp-state" class="field-error hidden" style="margin-bottom:12px;"></div>
+
+          <div id="cmp-starter" class="cmp-starter">
+            <div class="cmp-slot-card" id="cmp-slot-current"></div>
+            <button type="button" class="cmp-slot-card cmp-slot-add" id="cmp-slot-add-btn">
+              <span class="cmp-slot-plus">+</span>
+              <span>Add product to compare</span>
+            </button>
+          </div>
+
+          <div id="cmp-wrap" class="compare-table-wrap hidden">
+            <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+              <button type="button" class="btn btn-auto" id="cmp-add-more-btn">+ Add product</button>
+            </div>
+            <table class="compare-table" id="cmp-table"></table>
+          </div>
+        </div>
+
+        <div id="benchmarks-tab-panel" class="hidden">
+          <div id="benchmarks-tab-panel-body"></div>
+        </div>
+      </div>
+
+      <div class="section-card hidden" id="related-section">
+        <h2>Related Products</h2>
+        <div id="related-grid" class="product-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="cmp-modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 style="margin:0;">Add a product to compare</h3>
+        <button type="button" class="modal-close" id="cmp-picker-close">&times;</button>
+      </div>
+      <div class="modal-filters">
+        <input type="search" id="cmp-picker-search" placeholder="Search products..." style="flex:1;" />
+        <select id="cmp-picker-category">
+          <option value="">All categories</option>
+        </select>
+      </div>
+      <div class="modal-body">
+        <div id="cmp-picker-grid" class="picker-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="image-lightbox-overlay">
+    <div class="image-lightbox-box">
+      <button type="button" class="modal-close image-lightbox-close" id="image-lightbox-close">&times;</button>
+      <img id="image-lightbox-img" src="" alt="" />
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/format.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/cart-drawer.js"></script>
+  <script src="js/custom-select.js"></script>
+  <script src="js/toast.js"></script>
+  <script src="js/product-card.js"></script>
+  <script src="js/form-helpers.js"></script>
+  <script>
+    const productId = new URLSearchParams(window.location.search).get("id");
+    const stateEl = document.getElementById("product-state");
+    const detailEl = document.getElementById("product-detail");
+    let currentProduct = null;
+
+    const SPEC_LABELS = {
+      socket: "Socket", chipset: "Chipset", form_factor: "Form Factor", cores: "Cores",
+      threads: "Threads", clock_speed: "Base Clock", boost_clock: "Boost Clock",
+      cpu_generation: "CPU Generation", architecture: "Architecture",
+      integrated_graphics: "Integrated Graphics", cache_size: "Total Cache",
+      l1_cache: "L1 Cache", l2_cache: "L2 Cache", l3_cache: "L3 Cache",
+      pcie_version: "PCIe Version", pcie_slots: "PCIe Slots", ram_type: "RAM Type",
+      memory_type: "VRAM Type", memory_size: "Memory Size", max_memory: "Max Memory",
+      memory_slots: "Memory Slots", m2_slots: "M.2 Slots", sata_ports: "SATA Ports",
+      wifi: "Wi-Fi", length_mm: "Length (mm)", video_ports: "Video Ports",
+      ram_speed: "Speed (MHz)", cas_latency: "CAS Latency", kit_config: "Kit Configuration",
+      capacity: "Capacity", storage_type: "Storage Type", storage_interface: "Interface",
+      read_speed: "Read Speed (MB/s)", write_speed: "Write Speed (MB/s)",
+      power_draw: "Power Draw (W)", wattage: "Wattage (W)", efficiency_rating: "Efficiency Rating",
+      modular_type: "Modularity", max_gpu_length: "Max GPU Length (mm)",
+      cooler_type: "Cooler Type", fan_size: "Fan Size", max_tdp: "Max TDP Supported (W)",
+      screen_size: "Screen Size", resolution: "Resolution", refresh_rate: "Refresh Rate",
+      panel_type: "Panel Type", response_time: "Response Time",
+    };
+
+    async function loadProduct() {
+      if (!productId) {
+        stateEl.textContent = "No product specified.";
+        return;
+      }
+
+      try {
+        const result = await apiRequest(`/products/${productId}`, { auth: false });
+        currentProduct = result.data;
+        renderProduct(currentProduct);
+        stateEl.classList.add("hidden");
+        detailEl.classList.remove("hidden");
+        loadReviews();
+        loadRelatedProducts();
+        loadBenchmarks();
+      } catch (error) {
+        stateEl.textContent = error.status === 404 ? "Product not found." : (error.message || "Could not load product.");
+      }
+    }
+
+    async function loadBenchmarks() {
+      try {
+        const result = await apiRequest(`/products/${productId}/benchmarks`, { auth: false });
+        if (result.data.length === 0) return;
+
+        document.getElementById("tab-btn-benchmarks").classList.remove("hidden");
+        document.getElementById("benchmarks-tab-panel-body").innerHTML = result.data
+          .map((item) => {
+            const resultText = item.benchmark_target.type === "software"
+              ? `${item.score ?? "—"} ${item.unit || ""}`.trim()
+              : `${item.fps ?? "—"} FPS`;
+            const meta = [item.resolution, item.quality].filter(Boolean).join(" · ");
+            return `
+              <div class="list-row">
+                <div class="list-row-main">
+                  <div class="list-row-title">${escapeHtml(item.benchmark_target.name)}</div>
+                  ${meta ? `<div class="list-row-meta">${escapeHtml(meta)}</div>` : ""}
+                </div>
+                <strong>${escapeHtml(resultText)}</strong>
+              </div>
+            `;
+          })
+          .join("");
+      } catch (error) {
+        // Benchmarks are optional — if the endpoint fails, just leave the tab hidden.
+      }
+    }
+
+    function selectGalleryImage(url) {
+      const galleryEl = document.getElementById("gallery-main");
+      const img = galleryEl.querySelector("img");
+      if (img) img.src = url;
+      document.querySelectorAll("#gallery-thumbs .gallery-thumb").forEach((el) => {
+        el.classList.toggle("active", el.dataset.url === url);
+      });
+    }
+
+    function renderProduct(product) {
+      document.title = `${product.name} — PC Builder`;
+      document.getElementById("product-brand").textContent = product.brand?.name ?? "";
+      document.getElementById("product-name").textContent = product.name;
+      document.getElementById("product-description").textContent = product.description || "No description available.";
+
+      document.getElementById("product-stock").innerHTML = product.in_stock
+        ? `<span class="badge badge-success">In stock</span>`
+        : `<span class="badge badge-danger">Out of stock</span>`;
+
+      const hasSale = product.sale_price && Number(product.sale_price) < Number(product.price);
+      const discountPercent = getDiscountPercent(product);
+      document.getElementById("product-price").innerHTML = hasSale
+        ? `<span class="price" style="font-size:1.4rem;">${formatPrice(product.sale_price)}</span>
+           <span class="price-strike">${formatPrice(product.price)}</span>
+           ${discountPercent ? `<span class="discount-badge" style="position:static;">-${discountPercent}%</span>` : ""}`
+        : `<span class="price" style="font-size:1.4rem;">${formatPrice(product.price)}</span>`;
+
+      const mainImageUrl = getProductImageUrl(product);
+      const galleryEl = document.getElementById("gallery-main");
+      galleryEl.innerHTML = mainImageUrl
+        ? `<img src="${escapeHtml(mainImageUrl)}" alt="${escapeHtml(product.name)}" />`
+        : "No image";
+      galleryEl.classList.toggle("product-gallery-main-clickable", !!mainImageUrl);
+      galleryEl.onclick = mainImageUrl
+        ? () => openImageLightbox(galleryEl.querySelector("img").src, product.name)
+        : null;
+
+      const thumbsEl = document.getElementById("gallery-thumbs");
+      const images = product.images || [];
+      if (images.length > 1) {
+        thumbsEl.classList.remove("hidden");
+        thumbsEl.innerHTML = images
+          .map(
+            (img) => `
+              <button type="button" class="gallery-thumb ${img.url === mainImageUrl ? "active" : ""}" data-url="${escapeHtml(img.url)}">
+                <img src="${escapeHtml(img.url)}" alt="" />
+              </button>
+            `
+          )
+          .join("");
+        thumbsEl.querySelectorAll(".gallery-thumb").forEach((btn) => {
+          btn.addEventListener("click", () => selectGalleryImage(btn.dataset.url));
+        });
+      } else {
+        thumbsEl.classList.add("hidden");
+        thumbsEl.innerHTML = "";
+      }
+
+      const specTable = document.getElementById("spec-table");
+      const specToggleBtn = document.getElementById("spec-toggle-btn");
+      const spec = product.specification || {};
+
+      const brandHtml = product.brand?.logo
+        ? `<img src="${escapeHtml(product.brand.logo)}" alt="${escapeHtml(product.brand.name)}" style="height:24px; max-width:120px; object-fit:contain; vertical-align:middle;" />`
+        : escapeHtml(product.brand?.name ?? "—");
+
+      const warrantyBadge = document.getElementById("warranty-badge");
+      if (product.warranty_months) {
+        const years = product.warranty_months / 12;
+        const warrantyText = Number.isInteger(years)
+          ? `${years} year${years === 1 ? "" : "s"} warranty`
+          : `${product.warranty_months} months warranty`;
+        document.getElementById("warranty-badge-text").textContent = warrantyText;
+        warrantyBadge.classList.remove("hidden");
+      } else {
+        warrantyBadge.classList.add("hidden");
+      }
+
+      const entries = [{ label: "Brand", html: brandHtml }];
+      entries.push(
+        ...Object.entries(SPEC_LABELS)
+          .filter(([key]) => spec[key] !== null && spec[key] !== undefined && spec[key] !== "")
+          .map(([key, label]) => ({ label, value: spec[key] })),
+        ...(spec.custom_specifications || [])
+          .filter((pair) => pair.value !== null && pair.value !== undefined && pair.value !== "")
+          .map((pair) => ({ label: pair.key, value: pair.value }))
+      );
+
+      const SPEC_VISIBLE_ROWS = 6;
+      specTable.innerHTML = entries
+        .map(
+          (entry, index) => `
+            <tr class="${index >= SPEC_VISIBLE_ROWS ? "spec-extra-row hidden" : ""}">
+              <td>${escapeHtml(entry.label)}</td><td>${entry.html ?? escapeHtml(String(entry.value))}</td>
+            </tr>
+          `
+        )
+        .join("");
+
+      if (entries.length > SPEC_VISIBLE_ROWS) {
+        specToggleBtn.classList.remove("hidden");
+        specToggleBtn.textContent = "Show more";
+        specToggleBtn.dataset.expanded = "false";
+      } else {
+        specToggleBtn.classList.add("hidden");
+      }
+
+      const addToCartBtn = document.getElementById("add-to-cart-btn");
+      const buyNowBtn = document.getElementById("buy-now-btn");
+      if (!product.in_stock) {
+        addToCartBtn.disabled = true;
+        addToCartBtn.textContent = "Out of stock";
+        buyNowBtn.disabled = true;
+      }
+    }
+
+    document.getElementById("spec-toggle-btn").addEventListener("click", () => {
+      const btn = document.getElementById("spec-toggle-btn");
+      const expanded = btn.dataset.expanded === "true";
+      document.querySelectorAll(".spec-extra-row").forEach((row) => row.classList.toggle("hidden", expanded));
+      btn.textContent = expanded ? "Show more" : "Show less";
+      btn.dataset.expanded = String(!expanded);
+    });
+
+    document.getElementById("reviews-toggle-btn").addEventListener("click", () => {
+      const btn = document.getElementById("reviews-toggle-btn");
+      const expanded = btn.dataset.expanded === "true";
+      document.querySelectorAll(".review-extra").forEach((row) => row.classList.toggle("hidden", expanded));
+      btn.textContent = expanded ? "Show more" : "Show less";
+      btn.dataset.expanded = String(!expanded);
+    });
+
+    document.getElementById("add-to-cart-btn").addEventListener("click", async () => {
+      const messageEl = document.getElementById("action-message");
+      messageEl.textContent = "";
+
+      if (!Auth.isLoggedIn()) {
+        window.location.href = "login.html";
+        return;
+      }
+
+      try {
+        await apiRequest("/cart/items", { method: "POST", body: { product_id: Number(productId), quantity: 1 } });
+        messageEl.style.color = "var(--color-success)";
+        messageEl.textContent = "Added to cart.";
+        refreshCartBadge();
+        openCartDrawer();
+      } catch (error) {
+        messageEl.style.color = "var(--color-danger)";
+        messageEl.textContent = error.message || "Could not add to cart.";
+      }
+    });
+
+    document.getElementById("buy-now-btn").addEventListener("click", async () => {
+      const messageEl = document.getElementById("action-message");
+      messageEl.textContent = "";
+
+      if (!Auth.isLoggedIn()) {
+        window.location.href = "login.html";
+        return;
+      }
+
+      const buyNowBtn = document.getElementById("buy-now-btn");
+      setButtonLoading(buyNowBtn, true, "Redirecting...");
+
+      try {
+        await apiRequest("/cart/items", { method: "POST", body: { product_id: Number(productId), quantity: 1 } });
+        window.location.href = "checkout.html";
+      } catch (error) {
+        messageEl.style.color = "var(--color-danger)";
+        messageEl.textContent = error.message || "Could not start checkout.";
+        setButtonLoading(buyNowBtn, false);
+      }
+    });
+
+    document.getElementById("add-to-wishlist-btn").addEventListener("click", async () => {
+      const messageEl = document.getElementById("action-message");
+      messageEl.textContent = "";
+
+      if (!Auth.isLoggedIn()) {
+        window.location.href = "login.html";
+        return;
+      }
+
+      try {
+        await apiRequest("/wishlist", { method: "POST", body: { product_id: Number(productId) } });
+        messageEl.style.color = "var(--color-success)";
+        messageEl.textContent = "Added to wishlist.";
+      } catch (error) {
+        messageEl.style.color = "var(--color-danger)";
+        messageEl.textContent = error.message || "Could not add to wishlist.";
+      }
+    });
+
+    async function loadRelatedProducts() {
+      const relatedSection = document.getElementById("related-section");
+      const relatedGrid = document.getElementById("related-grid");
+
+      try {
+        let items = [];
+
+        if (currentProduct.category?.id && currentProduct.brand?.id) {
+          const sameBrand = await apiRequest(
+            `/products?category_id=${currentProduct.category.id}&brand_id=${currentProduct.brand.id}`,
+            { auth: false }
+          );
+          items = sameBrand.data.filter((p) => p.id !== currentProduct.id);
+        }
+
+        if (items.length < 4 && currentProduct.category?.id) {
+          const sameCategory = await apiRequest(`/products?category_id=${currentProduct.category.id}`, { auth: false });
+          const seen = new Set(items.map((p) => p.id));
+          sameCategory.data.forEach((p) => {
+            if (p.id !== currentProduct.id && !seen.has(p.id)) {
+              items.push(p);
+              seen.add(p.id);
+            }
+          });
+        }
+
+        items = items.slice(0, 8);
+
+        if (items.length === 0) return;
+
+        relatedGrid.innerHTML = items.map(renderProductCard).join("");
+        relatedSection.classList.remove("hidden");
+      } catch (error) {
+        // Related products are a nice-to-have; the page still works without them.
+      }
+    }
+
+    async function loadReviews() {
+      const reviewsSection = document.getElementById("reviews-section");
+      const reviewsList = document.getElementById("reviews-list");
+      reviewsSection.classList.remove("hidden");
+
+      if (Auth.isLoggedIn()) {
+        document.getElementById("review-form-wrapper").classList.remove("hidden");
+      } else {
+        document.getElementById("review-login-hint").classList.remove("hidden");
+      }
+
+      const toggleBtn = document.getElementById("reviews-toggle-btn");
+      const REVIEWS_VISIBLE_COUNT = 5;
+
+      try {
+        const result = await apiRequest(`/products/${productId}/reviews`, { auth: false });
+
+        if (result.data.length === 0) {
+          reviewsList.textContent = "No reviews yet.";
+          return;
+        }
+
+        reviewsList.classList.remove("state-message");
+        reviewsList.innerHTML = result.data
+          .map((review, index) => renderReview(review, index >= REVIEWS_VISIBLE_COUNT))
+          .join("");
+
+        if (result.data.length > REVIEWS_VISIBLE_COUNT) {
+          toggleBtn.classList.remove("hidden");
+          toggleBtn.textContent = "Show more";
+          toggleBtn.dataset.expanded = "false";
+        } else {
+          toggleBtn.classList.add("hidden");
+        }
+      } catch (error) {
+        reviewsList.textContent = "Could not load reviews.";
+      }
+    }
+
+    function renderReview(review, extra) {
+      return `
+        <div class="review${extra ? " review-extra hidden" : ""}">
+          <div class="review-header">
+            <span class="review-author">${escapeHtml(review.user.name)}</span>
+            <span class="review-rating">${"★".repeat(review.rating)}${"☆".repeat(5 - review.rating)}</span>
+          </div>
+          ${review.comment ? `<p class="review-comment">${escapeHtml(review.comment)}</p>` : ""}
+        </div>
+      `;
+    }
+
+    const ratingInput = document.getElementById("rating");
+    const starButtons = document.querySelectorAll("#rating-stars .star-btn");
+
+    function setStars(value) {
+      starButtons.forEach((btn) => btn.classList.toggle("active", Number(btn.dataset.value) <= value));
+    }
+
+    starButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        ratingInput.value = btn.dataset.value;
+        setStars(Number(btn.dataset.value));
+      });
+      btn.addEventListener("mouseenter", () => setStars(Number(btn.dataset.value)));
+    });
+
+    document.getElementById("rating-stars").addEventListener("mouseleave", () => setStars(Number(ratingInput.value)));
+
+    setStars(Number(ratingInput.value));
+
+    const reviewForm = document.getElementById("review-form");
+    reviewForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      clearFormErrors(reviewForm);
+      const submitBtn = document.getElementById("review-submit");
+      setButtonLoading(submitBtn, true, "Submitting...");
+
+      const successEl = document.getElementById("review-success");
+      successEl.style.display = "none";
+
+      try {
+        await apiRequest(`/products/${productId}/reviews`, {
+          method: "POST",
+          body: {
+            rating: Number(reviewForm.rating.value),
+            comment: reviewForm.comment.value || null,
+          },
+        });
+
+        successEl.textContent = "Review submitted — it will appear once approved.";
+        successEl.style.display = "block";
+        reviewForm.reset();
+        ratingInput.value = "5";
+        setStars(5);
+      } catch (error) {
+        displayFormErrors(reviewForm, error);
+      } finally {
+        setButtonLoading(submitBtn, false);
+      }
+    });
+
+    // Tabs
+    document.getElementById("tab-btn-reviews").addEventListener("click", () => switchTab("reviews"));
+    document.getElementById("tab-btn-comparison").addEventListener("click", () => switchTab("comparison"));
+    document.getElementById("tab-btn-benchmarks").addEventListener("click", () => switchTab("benchmarks"));
+
+    function switchTab(tab) {
+      document.getElementById("tab-btn-reviews").classList.toggle("active", tab === "reviews");
+      document.getElementById("tab-btn-comparison").classList.toggle("active", tab === "comparison");
+      document.getElementById("tab-btn-benchmarks").classList.toggle("active", tab === "benchmarks");
+      document.getElementById("reviews-tab-panel").classList.toggle("hidden", tab !== "reviews");
+      document.getElementById("comparison-tab-panel").classList.toggle("hidden", tab !== "comparison");
+      document.getElementById("benchmarks-tab-panel").classList.toggle("hidden", tab !== "benchmarks");
+      if (tab === "comparison" && !cmpInitialized) initComparison();
+    }
+
+    // Comparison (mirrors compare.html, pre-seeded with the current product)
+    const CMP_MAX_ITEMS = 5;
+    let cmpIds = [];
+    let cmpInitialized = false;
+    let cmpPickerDebounce;
+
+    const CMP_SPEC_ROWS = [
+      { key: "price", label: "Price", format: (p) => formatPrice(p.sale_price ?? p.price) },
+      { key: "brand", label: "Brand", format: (p) => p.brand?.name ?? "—" },
+      { key: "category", label: "Category", format: (p) => p.category?.name ?? "—" },
+      { key: "stock", label: "Stock", format: (p) => (p.in_stock ? "In stock" : "Out of stock") },
+      { key: "socket", label: "Socket", format: (p) => p.specification?.socket ?? "—" },
+      { key: "chipset", label: "Chipset", format: (p) => p.specification?.chipset ?? "—" },
+      { key: "cores", label: "Cores", format: (p) => p.specification?.cores ?? "—" },
+      { key: "threads", label: "Threads", format: (p) => p.specification?.threads ?? "—" },
+      { key: "clock_speed", label: "Clock Speed", format: (p) => p.specification?.clock_speed ?? "—" },
+      { key: "ram_type", label: "RAM Type", format: (p) => p.specification?.ram_type ?? "—" },
+      { key: "memory_size", label: "Memory Size", format: (p) => p.specification?.memory_size ?? "—" },
+      { key: "memory_slots", label: "Memory Slots", format: (p) => p.specification?.memory_slots ?? "—" },
+      { key: "capacity", label: "Capacity", format: (p) => p.specification?.capacity ?? "—" },
+      { key: "power_draw", label: "Power Draw", format: (p) => (p.specification?.power_draw ? `${p.specification.power_draw} W` : "—") },
+      { key: "wattage", label: "Wattage", format: (p) => (p.specification?.wattage ? `${p.specification.wattage} W` : "—") },
+    ];
+
+    function initComparison() {
+      cmpInitialized = true;
+      cmpIds = [Number(productId)];
+
+      const imageUrl = getProductImageUrl(currentProduct);
+      const thumb = imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" />` : "No image";
+      document.getElementById("cmp-slot-current").innerHTML = `
+        <div class="picker-card-thumb">${thumb}</div>
+        <div class="picker-card-name">${escapeHtml(currentProduct.name)}</div>
+        <div class="picker-card-price">${formatPrice(currentProduct.sale_price ?? currentProduct.price)}</div>
+      `;
+
+      loadCmpCategories();
+      refreshCmpComparison();
+    }
+
+    async function loadCmpCategories() {
+      try {
+        const result = await apiRequest("/categories", { auth: false });
+        const select = document.getElementById("cmp-picker-category");
+        result.data.forEach((category) => {
+          const option = document.createElement("option");
+          option.value = category.id;
+          option.textContent = category.name;
+          select.appendChild(option);
+        });
+      } catch (error) {
+        // optional filter
+      }
+    }
+
+    async function refreshCmpComparison() {
+      const stateEl = document.getElementById("cmp-state");
+      const starterEl = document.getElementById("cmp-starter");
+      const wrapEl = document.getElementById("cmp-wrap");
+      stateEl.classList.add("hidden");
+
+      if (cmpIds.length < 2) {
+        wrapEl.classList.add("hidden");
+        starterEl.classList.remove("hidden");
+        return;
+      }
+
+      try {
+        const result = await apiRequest(`/compare/products?ids=${cmpIds.join(",")}`, { auth: false });
+        renderCmpTable(result.data);
+        starterEl.classList.add("hidden");
+        wrapEl.classList.remove("hidden");
+      } catch (error) {
+        starterEl.classList.add("hidden");
+        wrapEl.classList.add("hidden");
+        stateEl.textContent = error.message || "Could not load comparison.";
+        stateEl.classList.remove("hidden");
+      }
+    }
+
+    function renderCmpTable(products) {
+      const table = document.getElementById("cmp-table");
+
+      const headerRow = `
+        <tr>
+          <th></th>
+          ${products.map((p) => `
+            <th>
+              ${escapeHtml(p.name)}
+              ${p.id === Number(productId) ? "" : `<br /><button type="button" class="compare-remove-btn" data-remove="${p.id}">Remove</button>`}
+            </th>
+          `).join("")}
+        </tr>
+      `;
+
+      const nameRow = `
+        <tr>
+          <td>Name</td>
+          ${products.map((p) => `<td><a href="product.html?id=${p.id}">${escapeHtml(p.name)}</a></td>`).join("")}
+        </tr>
+      `;
+
+      const rows = CMP_SPEC_ROWS.map(
+        (row) => `
+          <tr>
+            <td>${row.label}</td>
+            ${products.map((p) => `<td>${escapeHtml(String(row.format(p)))}</td>`).join("")}
+          </tr>
+        `
+      ).join("");
+
+      table.innerHTML = `<thead>${headerRow}</thead><tbody>${nameRow}${rows}</tbody>`;
+
+      table.querySelectorAll("[data-remove]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          cmpIds = cmpIds.filter((id) => id !== Number(btn.dataset.remove));
+          refreshCmpComparison();
+        });
+      });
+    }
+
+    function openCmpPicker() {
+      if (cmpIds.length >= CMP_MAX_ITEMS) {
+        showToast(`You can compare at most ${CMP_MAX_ITEMS} products.`, "info");
+        return;
+      }
+      document.getElementById("cmp-picker-search").value = "";
+      document.getElementById("cmp-picker-category").value = "";
+      document.getElementById("cmp-modal-overlay").classList.remove("hidden");
+      loadCmpPickerProducts();
+    }
+
+    document.getElementById("cmp-slot-add-btn").addEventListener("click", openCmpPicker);
+    document.getElementById("cmp-add-more-btn").addEventListener("click", openCmpPicker);
+
+    document.getElementById("cmp-picker-close").addEventListener("click", closeCmpPicker);
+    document.getElementById("cmp-modal-overlay").addEventListener("click", (e) => {
+      if (e.target.id === "cmp-modal-overlay") closeCmpPicker();
+    });
+
+    function closeCmpPicker() {
+      document.getElementById("cmp-modal-overlay").classList.add("hidden");
+    }
+
+    function openImageLightbox(url, alt) {
+      document.getElementById("image-lightbox-img").src = url;
+      document.getElementById("image-lightbox-img").alt = alt;
+      document.getElementById("image-lightbox-overlay").classList.remove("hidden");
+    }
+
+    function closeImageLightbox() {
+      document.getElementById("image-lightbox-overlay").classList.add("hidden");
+    }
+
+    document.getElementById("image-lightbox-close").addEventListener("click", closeImageLightbox);
+    document.getElementById("image-lightbox-overlay").addEventListener("click", (e) => {
+      if (e.target.id === "image-lightbox-overlay") closeImageLightbox();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeImageLightbox();
+    });
+
+    async function loadCmpPickerProducts() {
+      const grid = document.getElementById("cmp-picker-grid");
+      grid.innerHTML = `<p class="state-message">Loading...</p>`;
+
+      const params = new URLSearchParams();
+      const search = document.getElementById("cmp-picker-search").value.trim();
+      const category = document.getElementById("cmp-picker-category").value;
+      if (search) params.set("search", search);
+      if (category) params.set("category_id", category);
+
+      try {
+        const result = await apiRequest(`/products?${params.toString()}`, { auth: false });
+        const items = result.data.filter((p) => !cmpIds.includes(p.id));
+
+        if (items.length === 0) {
+          grid.innerHTML = `<p class="state-message">No more products found.</p>`;
+          return;
+        }
+
+        grid.innerHTML = items.map(renderCmpPickerCard).join("");
+        items.forEach((product) => {
+          document.getElementById(`cmp-pick-${product.id}`).addEventListener("click", () => {
+            cmpIds.push(product.id);
+            closeCmpPicker();
+            refreshCmpComparison();
+          });
+        });
+      } catch (error) {
+        grid.innerHTML = `<p class="state-message">${escapeHtml(error.message || "Could not load products.")}</p>`;
+      }
+    }
+
+    function renderCmpPickerCard(product) {
+      const imageUrl = getProductImageUrl(product);
+      const thumb = imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" />` : "No image";
+      return `
+        <button type="button" class="picker-card" id="cmp-pick-${product.id}">
+          <div class="picker-card-thumb">${thumb}</div>
+          <div class="picker-card-name">${escapeHtml(product.name)}</div>
+          <div class="picker-card-price">${formatPrice(product.sale_price ?? product.price)}</div>
+        </button>
+      `;
+    }
+
+    document.getElementById("cmp-picker-search").addEventListener("input", () => {
+      clearTimeout(cmpPickerDebounce);
+      cmpPickerDebounce = setTimeout(loadCmpPickerProducts, 400);
+    });
+    document.getElementById("cmp-picker-category").addEventListener("change", loadCmpPickerProducts);
+
+    loadProduct();
+  </script>
+</body>
+</html>

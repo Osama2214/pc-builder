@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Admin — PC Builder</title>
+  <link rel="stylesheet" href="../css/main.css" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <div class="page">
+    <div class="container">
+      <div class="page-header">
+        <h1>Admin Dashboard</h1>
+      </div>
+
+      <div id="stats-state" class="state-message">Loading dashboard...</div>
+
+      <div id="stats-grid" class="stats-grid hidden"></div>
+
+      <div id="recent-orders-card" class="section-card hidden">
+        <div class="page-header" style="margin-bottom:14px;">
+          <h3 style="margin:0;">Recent Orders</h3>
+          <a href="orders.html">View all</a>
+        </div>
+        <div id="recent-orders-list"></div>
+      </div>
+
+      <h3 style="margin: 28px 0 14px;">Manage</h3>
+      <div class="product-grid" id="nav-tiles">
+        <a class="product-card admin-tile" href="products.html">
+          <div class="product-card-name" style="font-size:1.05rem;">Products</div>
+          <p style="margin:6px 0 0;">Manage the catalog, specs, and images.</p>
+          <div class="admin-tile-badges" id="tile-products"></div>
+        </a>
+        <a class="product-card admin-tile" href="orders.html">
+          <div class="product-card-name" style="font-size:1.05rem;">Orders</div>
+          <p style="margin:6px 0 0;">View and fulfill customer orders.</p>
+          <div class="admin-tile-badges" id="tile-orders"></div>
+        </a>
+        <a class="product-card admin-tile" href="reviews.html">
+          <div class="product-card-name" style="font-size:1.05rem;">Reviews</div>
+          <p style="margin:6px 0 0;">Approve or remove pending reviews.</p>
+          <div class="admin-tile-badges" id="tile-reviews"></div>
+        </a>
+        <a class="product-card admin-tile" href="categories.html">
+          <div class="product-card-name" style="font-size:1.05rem;">Categories</div>
+          <p style="margin:6px 0 0;">Manage product categories.</p>
+          <div class="admin-tile-badges" id="tile-categories"></div>
+        </a>
+        <a class="product-card admin-tile" href="brands.html">
+          <div class="product-card-name" style="font-size:1.05rem;">Brands</div>
+          <p style="margin:6px 0 0;">Manage brands.</p>
+          <div class="admin-tile-badges" id="tile-brands"></div>
+        </a>
+        <a class="product-card admin-tile" href="banners.html">
+          <div class="product-card-name" style="font-size:1.05rem;">Banners</div>
+          <p style="margin:6px 0 0;">Manage the homepage image carousel.</p>
+          <div class="admin-tile-badges" id="tile-banners"></div>
+        </a>
+        <a class="product-card admin-tile" href="benchmark-targets.html">
+          <div class="product-card-name" style="font-size:1.05rem;">Benchmark Targets</div>
+          <p style="margin:6px 0 0;">Manage games/software used for benchmarks.</p>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/format.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/cart-drawer.js"></script>
+  <script src="../js/custom-select.js"></script>
+  <script src="../js/toast.js"></script>
+  <script>
+    Auth.requireAdmin();
+
+    function statCard(label, value, options) {
+      options = options || {};
+      return `
+        <div class="stat-card${options.accent ? ` stat-card-${options.accent}` : ""}">
+          <div class="stat-card-label">${label}</div>
+          <div class="stat-card-value">${value}</div>
+          ${options.sub ? `<div class="stat-card-sub">${options.sub}</div>` : ""}
+        </div>
+      `;
+    }
+
+    function badge(count, label, tone) {
+      if (!count) return "";
+      return `<span class="badge badge-${tone || "danger"}" style="margin-top:8px; margin-right:6px; display:inline-block;">${count} ${label}</span>`;
+    }
+
+    async function loadDashboard() {
+      try {
+        const result = await apiRequest("/admin/stats");
+        const stats = result.data;
+
+        document.getElementById("stats-state").classList.add("hidden");
+
+        document.getElementById("stats-grid").innerHTML = [
+          statCard("Total Revenue", formatPrice(stats.orders.revenue), { sub: "Excludes cancelled orders" }),
+          statCard("Orders", stats.orders.total, {
+            sub: stats.orders.pending > 0 ? `${stats.orders.pending} pending` : "None pending",
+            accent: stats.orders.pending > 0 ? "warning" : null,
+          }),
+          statCard("Pending Reviews", stats.reviews.pending, {
+            accent: stats.reviews.pending > 0 ? "warning" : null,
+          }),
+          statCard("Active Products", `${stats.products.active} / ${stats.products.total}`, {
+            sub: `${stats.products.low_stock} low stock · ${stats.products.out_of_stock} out of stock`,
+            accent: stats.products.out_of_stock > 0 ? "danger" : null,
+          }),
+          statCard("Customers", stats.users.total),
+          statCard("Catalog", `${stats.categories.total} categories`, { sub: `${stats.brands.total} brands` }),
+        ].join("");
+        document.getElementById("stats-grid").classList.remove("hidden");
+
+        if (stats.recent_orders.length > 0) {
+          document.getElementById("recent-orders-list").innerHTML = stats.recent_orders
+            .map(
+              (order) => `
+                <div class="list-row">
+                  <div class="list-row-main">
+                    <div class="list-row-title"><a href="/order.html?id=${order.id}">${escapeHtml(order.order_number)}</a></div>
+                    <div class="list-row-meta">${order.items.length} item${order.items.length === 1 ? "" : "s"} · ${formatPrice(order.total_price)}</div>
+                  </div>
+                  <span class="status-badge status-${order.status}">${order.status}</span>
+                </div>
+              `
+            )
+            .join("");
+          document.getElementById("recent-orders-card").classList.remove("hidden");
+        }
+
+        document.getElementById("tile-products").innerHTML =
+          badge(stats.products.out_of_stock, "out of stock", "danger") +
+          badge(stats.products.low_stock, "low stock", "warning");
+        document.getElementById("tile-orders").innerHTML = badge(stats.orders.pending, "pending", "warning");
+        document.getElementById("tile-reviews").innerHTML = badge(stats.reviews.pending, "pending", "danger");
+        document.getElementById("tile-categories").innerHTML =
+          `<span class="badge badge-neutral" style="margin-top:8px; display:inline-block;">${stats.categories.total}</span>`;
+        document.getElementById("tile-brands").innerHTML =
+          `<span class="badge badge-neutral" style="margin-top:8px; display:inline-block;">${stats.brands.total}</span>`;
+        document.getElementById("tile-banners").innerHTML =
+          `<span class="badge badge-neutral" style="margin-top:8px; display:inline-block;">${stats.banners.active} active</span>`;
+      } catch (error) {
+        document.getElementById("stats-state").textContent = error.message || "Could not load dashboard stats.";
+      }
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>

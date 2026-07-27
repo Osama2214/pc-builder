@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Login — PC Builder</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div class="page-center">
+    <div class="card">
+      <h1>Welcome back</h1>
+      <p class="card-subtitle">Log in to build, save, and buy your PC.</p>
+
+      <form id="login-form" novalidate>
+        <div class="alert alert-danger hidden"></div>
+
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" autocomplete="email" required />
+          <div class="field-error" data-error-for="email"></div>
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" autocomplete="current-password" required />
+          <div class="field-error" data-error-for="password"></div>
+        </div>
+
+        <button type="submit" class="btn" id="login-submit">Log in</button>
+      </form>
+
+      <div class="form-footer">
+        Don't have an account? <a href="register.html">Register</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/form-helpers.js"></script>
+  <script>
+    Auth.redirectIfAuthenticated("index.html");
+
+    const form = document.getElementById("login-form");
+    const submitBtn = document.getElementById("login-submit");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      clearFormErrors(form);
+      setButtonLoading(submitBtn, true, "Logging in...");
+
+      try {
+        const result = await Api.login({
+          email: form.email.value,
+          password: form.password.value,
+        });
+
+        Auth.saveSession(result.token, result.user);
+        window.location.href = "index.html";
+      } catch (error) {
+        displayFormErrors(form, error);
+      } finally {
+        setButtonLoading(submitBtn, false);
+      }
+    });
+  </script>
+</body>
+</html>

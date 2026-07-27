@@ -1,0 +1,210 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Admin: Products — PC Builder</title>
+  <link rel="stylesheet" href="../css/main.css" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <div class="page">
+    <div class="container">
+      <div class="page-header">
+        <h1>Products</h1>
+        <a href="product-edit.html" class="btn btn-auto">+ Add product</a>
+      </div>
+
+      <div class="filters-bar">
+        <input type="search" id="search-input" placeholder="Search products..." />
+        <select id="category-filter">
+          <option value="">All categories</option>
+        </select>
+        <select id="brand-filter">
+          <option value="">All brands</option>
+        </select>
+        <select id="status-filter">
+          <option value="">All statuses</option>
+          <option value="true">Active</option>
+          <option value="false">Inactive</option>
+        </select>
+        <select id="stock-filter">
+          <option value="">All stock</option>
+          <option value="in_stock">In stock</option>
+          <option value="low_stock">Low stock</option>
+          <option value="out_of_stock">Out of stock</option>
+        </select>
+        <button type="button" class="link-btn" id="clear-filters">Clear filters</button>
+      </div>
+
+      <div id="state" class="state-message">Loading products...</div>
+      <div id="list"></div>
+      <div id="pagination" class="pagination hidden"></div>
+    </div>
+  </div>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/format.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/cart-drawer.js"></script>
+  <script src="../js/custom-select.js"></script>
+  <script src="../js/toast.js"></script>
+  <script src="../js/confirm-dialog.js"></script>
+  <script>
+    Auth.requireAdmin();
+
+    const stateEl = document.getElementById("state");
+    const listEl = document.getElementById("list");
+    const paginationEl = document.getElementById("pagination");
+    const searchInput = document.getElementById("search-input");
+    const categoryFilter = document.getElementById("category-filter");
+    const brandFilter = document.getElementById("brand-filter");
+    const statusFilter = document.getElementById("status-filter");
+    const stockFilter = document.getElementById("stock-filter");
+    let searchDebounce;
+    let currentPage = 1;
+    let currentProducts = [];
+
+    async function loadFilterOptions() {
+      const [categories, brands] = await Promise.all([
+        apiRequest("/categories", { auth: false }),
+        apiRequest("/brands", { auth: false }),
+      ]);
+      categories.data.forEach((c) => {
+        const opt = document.createElement("option");
+        opt.value = c.id;
+        opt.textContent = c.name;
+        categoryFilter.appendChild(opt);
+      });
+      brands.data.forEach((b) => {
+        const opt = document.createElement("option");
+        opt.value = b.id;
+        opt.textContent = b.name;
+        brandFilter.appendChild(opt);
+      });
+    }
+
+    async function load(page = 1) {
+      currentPage = page;
+      stateEl.classList.remove("hidden");
+      stateEl.textContent = "Loading products...";
+
+      const params = new URLSearchParams({ page: String(page) });
+      if (searchInput.value.trim()) params.set("search", searchInput.value.trim());
+      if (categoryFilter.value) params.set("category_id", categoryFilter.value);
+      if (brandFilter.value) params.set("brand_id", brandFilter.value);
+      if (statusFilter.value) params.set("is_active", statusFilter.value);
+      if (stockFilter.value) params.set("stock_status", stockFilter.value);
+
+      try {
+        const result = await apiRequest(`/products?${params.toString()}`);
+        currentProducts = result.data;
+
+        if (result.data.length === 0) {
+          listEl.innerHTML = "";
+          paginationEl.classList.add("hidden");
+          stateEl.textContent = "No products found.";
+          return;
+        }
+
+        stateEl.classList.add("hidden");
+        listEl.innerHTML = result.data.map(renderRow).join("");
+        renderPagination(result.meta, page);
+      } catch (error) {
+        stateEl.textContent = error.message || "Could not load products.";
+      }
+    }
+
+    function renderRow(product) {
+      const activeBadge = product.is_active
+        ? '<span class="badge badge-success">Active</span>'
+        : '<span class="badge badge-danger">Inactive</span>';
+      const stockBadge = product.in_stock
+        ? '<span class="badge badge-success">In stock</span>'
+        : '<span class="badge badge-danger">Out of stock</span>';
+
+      return `
+        <div class="list-row">
+          <div class="list-row-main">
+            <div class="list-row-title">${escapeHtml(product.name)}</div>
+            <div class="list-row-meta">SKU: ${escapeHtml(product.sku)} · ${formatPrice(product.sale_price ?? product.price)} · Stock: ${product.stock} ${activeBadge} ${stockBadge}</div>
+          </div>
+          <div class="list-row-actions">
+            <a href="product-edit.html?id=${product.id}" class="link-btn">Edit</a>
+            <button type="button" class="link-btn" id="toggle-${product.id}">${product.is_active ? "Deactivate" : "Activate"}</button>
+            <button type="button" class="cart-item-remove" id="delete-${product.id}">Delete</button>
+          </div>
+        </div>
+      `;
+    }
+
+    async function toggleActive(product) {
+      try {
+        await apiRequest(`/products/${product.id}`, { method: "PUT", body: { is_active: !product.is_active } });
+        load(currentPage);
+      } catch (error) {
+        showToast(error.message || "Could not update this product.", "danger");
+      }
+    }
+
+    function renderPagination(meta, currentPage) {
+      if (!meta || meta.last_page <= 1) {
+        paginationEl.classList.add("hidden");
+        return;
+      }
+      paginationEl.classList.remove("hidden");
+      paginationEl.innerHTML = `
+        <button type="button" id="prev-page" ${currentPage <= 1 ? "disabled" : ""}>Prev</button>
+        <span class="pagination-info">Page ${meta.current_page} of ${meta.last_page}</span>
+        <button type="button" id="next-page" ${currentPage >= meta.last_page ? "disabled" : ""}>Next</button>
+      `;
+      document.getElementById("prev-page").addEventListener("click", () => load(currentPage - 1));
+      document.getElementById("next-page").addEventListener("click", () => load(currentPage + 1));
+    }
+
+    document.addEventListener("click", (e) => {
+      if (e.target.id?.startsWith("delete-")) {
+        deleteProduct(Number(e.target.id.replace("delete-", "")));
+      }
+      if (e.target.id?.startsWith("toggle-")) {
+        const product = currentProducts.find((p) => p.id === Number(e.target.id.replace("toggle-", "")));
+        if (product) toggleActive(product);
+      }
+    });
+
+    async function deleteProduct(id) {
+      if (!(await showConfirm("Delete this product? It will be hidden from customers but historical orders keep it."))) return;
+      try {
+        await apiRequest(`/products/${id}`, { method: "DELETE" });
+        load();
+      } catch (error) {
+        showToast(error.message || "Could not delete this product.", "danger");
+      }
+    }
+
+    searchInput.addEventListener("input", () => {
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(() => load(1), 400);
+    });
+
+    [categoryFilter, brandFilter, statusFilter, stockFilter].forEach((select) => {
+      select.addEventListener("change", () => load(1));
+    });
+
+    document.getElementById("clear-filters").addEventListener("click", () => {
+      searchInput.value = "";
+      categoryFilter.value = "";
+      brandFilter.value = "";
+      statusFilter.value = "";
+      stockFilter.value = "";
+      load(1);
+    });
+
+    loadFilterOptions();
+    load(1);
+  </script>
+</body>
+</html>

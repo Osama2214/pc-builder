@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Admin: Banners — PC Builder</title>
+  <link rel="stylesheet" href="../css/main.css" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <div class="page">
+    <div class="container" style="max-width: 900px;">
+      <div class="page-header">
+        <h1>Homepage Banners</h1>
+      </div>
+
+      <div class="section-card" style="margin-top:0;">
+        <h3>Add a banner</h3>
+        <p style="color: var(--color-text-muted); font-size: 0.85rem; margin-top: -8px;">
+          Recommended: a wide image (e.g. 1600×500). Shown on the homepage carousel.
+        </p>
+        <form id="banner-form" novalidate>
+          <div class="alert alert-danger hidden"></div>
+          <div class="field">
+            <label for="image">Image</label>
+            <div class="file-upload">
+              <input type="file" id="image" name="image" class="file-upload-input" accept="image/png,image/jpeg,image/webp" required />
+              <label for="image" class="file-upload-label">Choose Image</label>
+              <span class="file-upload-filename" id="image-filename">No image chosen</span>
+            </div>
+            <div class="field-error" data-error-for="image"></div>
+          </div>
+          <div class="field">
+            <label for="link_url">Link URL (optional)</label>
+            <input type="text" id="link_url" name="link_url" placeholder="products.html?category_id=1" />
+            <div class="field-error" data-error-for="link_url"></div>
+          </div>
+          <div class="field">
+            <label for="sort_order">Sort order</label>
+            <input type="number" id="sort_order" name="sort_order" min="0" value="0" />
+            <div class="field-error" data-error-for="sort_order"></div>
+          </div>
+          <button type="submit" class="btn btn-auto" id="save-btn">Upload banner</button>
+        </form>
+      </div>
+
+      <div id="state" class="state-message">Loading banners...</div>
+      <div id="list"></div>
+    </div>
+  </div>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/format.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/cart-drawer.js"></script>
+  <script src="../js/custom-select.js"></script>
+  <script src="../js/toast.js"></script>
+  <script src="../js/confirm-dialog.js"></script>
+  <script src="../js/form-helpers.js"></script>
+  <script>
+    Auth.requireAdmin();
+
+    const stateEl = document.getElementById("state");
+    const listEl = document.getElementById("list");
+    const form = document.getElementById("banner-form");
+
+    document.getElementById("image").addEventListener("change", (event) => {
+      const files = event.target.files;
+      document.getElementById("image-filename").textContent = files.length > 0 ? files[0].name : "No image chosen";
+    });
+
+    async function load() {
+      try {
+        const result = await apiRequest("/banners");
+        render(result.data);
+      } catch (error) {
+        stateEl.textContent = error.message || "Could not load banners.";
+      }
+    }
+
+    function render(items) {
+      stateEl.classList.toggle("hidden", items.length > 0);
+      if (items.length === 0) stateEl.textContent = "No banners yet.";
+
+      listEl.innerHTML = items
+        .map(
+          (item) => `
+            <div class="list-row">
+              <img src="${escapeHtml(item.image_url)}" alt="" style="width:120px; height:60px; object-fit:cover; border-radius:var(--radius-sm); flex-shrink:0;" />
+              <div class="list-row-main">
+                <div class="list-row-title">${item.link_url ? escapeHtml(item.link_url) : "No link"}</div>
+                <div class="list-row-meta">Sort order: ${item.sort_order} · ${item.is_active ? "Active" : "Inactive"}</div>
+              </div>
+              <div class="list-row-actions">
+                <button type="button" class="link-btn" id="toggle-${item.id}">${item.is_active ? "Deactivate" : "Activate"}</button>
+                <button type="button" class="cart-item-remove" id="delete-${item.id}">Delete</button>
+              </div>
+            </div>
+          `
+        )
+        .join("");
+
+      items.forEach((item) => {
+        document.getElementById(`toggle-${item.id}`).addEventListener("click", () => toggleActive(item));
+        document.getElementById(`delete-${item.id}`).addEventListener("click", () => deleteItem(item.id));
+      });
+    }
+
+    async function toggleActive(item) {
+      try {
+        await apiRequest(`/banners/${item.id}`, { method: "PATCH", body: { is_active: !item.is_active } });
+        load();
+      } catch (error) {
+        showToast(error.message || "Could not update this banner.", "danger");
+      }
+    }
+
+    async function deleteItem(id) {
+      if (!(await showConfirm("Delete this banner?"))) return;
+      try {
+        await apiRequest(`/banners/${id}`, { method: "DELETE" });
+        load();
+      } catch (error) {
+        showToast(error.message || "Could not delete this banner.", "danger");
+      }
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      clearFormErrors(form);
+      const btn = document.getElementById("save-btn");
+      setButtonLoading(btn, true, "Uploading...");
+
+      const formData = new FormData();
+      formData.append("image", form.image.files[0]);
+      if (form.link_url.value) formData.append("link_url", form.link_url.value);
+      formData.append("sort_order", form.sort_order.value || "0");
+
+      try {
+        await apiRequest("/banners", { method: "POST", body: formData });
+        form.reset();
+        form.sort_order.value = "0";
+        document.getElementById("image-filename").textContent = "No image chosen";
+        load();
+      } catch (error) {
+        displayFormErrors(form, error);
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    });
+
+    load();
+  </script>
+</body>
+</html>

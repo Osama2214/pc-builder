@@ -1,0 +1,41 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class Address extends Model
+{
+    use HasFactory;
+
+    // user_id is deliberately not fillable — always set via $user->addresses()->create()
+    // to prevent one user from writing an address onto another user's account.
+    protected $fillable = [
+        'city',
+        'country',
+        'street',
+        'postal_code',
+        'phone',
+        'is_default',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_default' => 'boolean',
+        ];
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
+}

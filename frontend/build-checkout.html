@@ -1,0 +1,338 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Buy Build — PC Builder</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <div class="page">
+    <div class="container">
+      <div class="page-header">
+        <h1>Buy this build</h1>
+      </div>
+
+      <div id="checkout-state" class="state-message">Loading...</div>
+
+      <div id="checkout-layout" class="checkout-layout hidden">
+        <div>
+          <div class="section-card" style="margin-top:0;">
+            <h3>Shipping address</h3>
+            <div id="address-list"></div>
+            <button type="button" class="link-btn" id="toggle-new-address">+ Add a new address</button>
+
+            <form id="new-address-form" class="hidden" style="margin-top: 16px;" novalidate>
+              <div class="alert alert-danger hidden"></div>
+              <div class="field">
+                <label for="city">City</label>
+                <input type="text" id="city" name="city" required />
+                <div class="field-error" data-error-for="city"></div>
+              </div>
+              <div class="field">
+                <label for="country">Country</label>
+                <input type="text" id="country" name="country" required />
+                <div class="field-error" data-error-for="country"></div>
+              </div>
+              <div class="field">
+                <label for="street">Street</label>
+                <input type="text" id="street" name="street" required />
+                <div class="field-error" data-error-for="street"></div>
+              </div>
+              <div class="field">
+                <label for="phone">Phone (optional)</label>
+                <input type="text" id="phone" name="phone" />
+                <div class="field-error" data-error-for="phone"></div>
+              </div>
+              <button type="submit" class="btn btn-auto" id="save-address-btn">Save address</button>
+            </form>
+          </div>
+
+          <div class="section-card">
+            <h3>Payment</h3>
+            <div class="field">
+              <label for="payment_method">Payment method</label>
+              <select id="payment_method" name="payment_method">
+                <option value="cash_on_delivery">Cash on delivery</option>
+                <option value="card">Card</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="notes">Order notes (optional)</label>
+              <textarea id="notes" name="notes"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card" style="margin-top:0;">
+          <h3 id="build-summary-name">Build</h3>
+          <div id="summary-items"></div>
+          <div class="summary-row total">
+            <span>Total</span>
+            <span id="summary-total"></span>
+          </div>
+          <div class="alert alert-danger hidden" id="order-error"></div>
+          <button type="button" class="btn" id="place-order-btn">Place Order</button>
+        </div>
+      </div>
+
+      <div id="confirmation" class="section-card hidden" style="margin-top: 0;">
+        <div class="confirmation-header">
+          <div class="confirmation-icon-badge">
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+          <div>
+            <h2 style="margin:0;">Order placed!</h2>
+            <p class="confirmation-subtext">We'll email you updates on its status.</p>
+          </div>
+        </div>
+
+        <div class="confirmation-detail-row">
+          <span>Order number</span>
+          <span id="conf-order-number" style="font-weight:600;"></span>
+        </div>
+        <div class="confirmation-detail-row">
+          <span>Status</span>
+          <span id="conf-order-status" class="status-badge"></span>
+        </div>
+        <div class="confirmation-detail-row">
+          <span>Payment method</span>
+          <span id="conf-payment-method"></span>
+        </div>
+
+        <div class="confirmation-section">
+          <h4>Items</h4>
+          <div id="conf-items"></div>
+        </div>
+
+        <div class="confirmation-section">
+          <h4>Shipping to</h4>
+          <p id="conf-address" style="margin:0; color:var(--color-text-muted);"></p>
+        </div>
+
+        <div class="summary-row total" style="margin-top:16px;">
+          <span>Total</span>
+          <span id="conf-total"></span>
+        </div>
+
+        <div class="confirmation-actions">
+          <a href="products.html" class="btn btn-secondary btn-auto">Continue shopping</a>
+          <a href="#" id="conf-view-order-link" class="btn btn-auto">View order</a>
+        </div>
+      </div>
+
+      <div id="not-ready-state" class="state-message hidden"></div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/format.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/cart-drawer.js"></script>
+  <script src="js/custom-select.js"></script>
+  <script src="js/toast.js"></script>
+  <script src="js/form-helpers.js"></script>
+  <script>
+    Auth.requireAuth();
+
+    const buildId = new URLSearchParams(window.location.search).get("id");
+    const stateEl = document.getElementById("checkout-state");
+    const layoutEl = document.getElementById("checkout-layout");
+    const notReadyEl = document.getElementById("not-ready-state");
+    const confirmationEl = document.getElementById("confirmation");
+
+    let selectedAddressId = null;
+    let buildData = null;
+
+    async function init() {
+      if (!buildId) {
+        stateEl.textContent = "No build specified.";
+        return;
+      }
+
+      try {
+        const [buildResult, addressesResult] = await Promise.all([
+          apiRequest(`/builds/${buildId}`),
+          apiRequest("/addresses"),
+        ]);
+
+        buildData = buildResult.data;
+
+        if (buildData.status !== "complete") {
+          stateEl.classList.add("hidden");
+          notReadyEl.classList.remove("hidden");
+          notReadyEl.textContent =
+            buildData.status === "purchased"
+              ? "This build has already been purchased."
+              : "This build is missing required parts — finish it before buying.";
+          return;
+        }
+
+        renderSummary(buildData);
+        renderAddresses(addressesResult.data);
+
+        stateEl.classList.add("hidden");
+        layoutEl.classList.remove("hidden");
+      } catch (error) {
+        stateEl.textContent = error.message || "Could not load checkout.";
+      }
+    }
+
+    function renderSummary(build) {
+      document.getElementById("build-summary-name").textContent = build.name || "Untitled build";
+      document.getElementById("summary-items").innerHTML = build.items
+        .map(
+          (item) => `
+            <div class="summary-row">
+              <span>${escapeHtml(item.product.name)} × ${item.quantity}</span>
+              <span>${formatPrice((item.product.sale_price ?? item.product.price) * item.quantity)}</span>
+            </div>
+          `
+        )
+        .join("");
+      document.getElementById("summary-total").textContent = formatPrice(build.total_price);
+    }
+
+    function renderConfirmation(order) {
+      document.getElementById("conf-order-number").textContent = order.order_number;
+
+      const statusEl = document.getElementById("conf-order-status");
+      statusEl.textContent = order.status;
+      statusEl.className = `status-badge status-${order.status}`;
+
+      document.getElementById("conf-payment-method").textContent = order.payment_method
+        ? order.payment_method.replace(/_/g, " ")
+        : "—";
+
+      document.getElementById("conf-items").innerHTML = order.items
+        .map(
+          (item) => `
+            <div class="summary-row">
+              <span>${escapeHtml(item.product.name)} × ${item.quantity}</span>
+              <span>${formatPrice(item.line_total)}</span>
+            </div>
+          `
+        )
+        .join("");
+
+      const address = order.address;
+      document.getElementById("conf-address").innerHTML = address
+        ? `${escapeHtml(address.street)}<br />${escapeHtml(address.city)}, ${escapeHtml(address.country)}${address.phone ? `<br />${escapeHtml(address.phone)}` : ""}`
+        : "—";
+
+      document.getElementById("conf-total").textContent = formatPrice(order.total_price);
+      document.getElementById("conf-view-order-link").href = `order.html?id=${order.id}`;
+    }
+
+    function renderAddresses(addresses) {
+      const listEl = document.getElementById("address-list");
+
+      if (addresses.length === 0) {
+        listEl.innerHTML = `<p style="margin:0;">No saved addresses yet — add one below.</p>`;
+        document.getElementById("new-address-form").classList.remove("hidden");
+        return;
+      }
+
+      const defaultAddress = addresses.find((a) => a.is_default) || addresses[0];
+      selectedAddressId = defaultAddress.id;
+
+      listEl.innerHTML = addresses
+        .map(
+          (address) => `
+            <label class="address-option">
+              <input type="radio" name="address" value="${address.id}" ${address.id === selectedAddressId ? "checked" : ""} />
+              <span class="address-option-text">
+                <strong>${escapeHtml(address.street)}${address.is_default ? " (default)" : ""}</strong>
+                ${escapeHtml(address.city)}, ${escapeHtml(address.country)}
+                ${address.phone ? `<br />${escapeHtml(address.phone)}` : ""}
+              </span>
+            </label>
+          `
+        )
+        .join("");
+
+      listEl.querySelectorAll('input[name="address"]').forEach((input) => {
+        input.addEventListener("change", (e) => {
+          selectedAddressId = Number(e.target.value);
+        });
+      });
+    }
+
+    document.getElementById("toggle-new-address").addEventListener("click", () => {
+      document.getElementById("new-address-form").classList.toggle("hidden");
+    });
+
+    const addressForm = document.getElementById("new-address-form");
+    addressForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      clearFormErrors(addressForm);
+      const submitBtn = document.getElementById("save-address-btn");
+      setButtonLoading(submitBtn, true, "Saving...");
+
+      try {
+        const result = await apiRequest("/addresses", {
+          method: "POST",
+          body: {
+            city: addressForm.city.value,
+            country: addressForm.country.value,
+            street: addressForm.street.value,
+            phone: addressForm.phone.value || null,
+          },
+        });
+
+        addressForm.reset();
+        addressForm.classList.add("hidden");
+        const addressesResult = await apiRequest("/addresses");
+        renderAddresses(addressesResult.data);
+        selectedAddressId = result.data.id;
+      } catch (error) {
+        displayFormErrors(addressForm, error);
+      } finally {
+        setButtonLoading(submitBtn, false);
+      }
+    });
+
+    document.getElementById("place-order-btn").addEventListener("click", async () => {
+      const errorEl = document.getElementById("order-error");
+      errorEl.classList.add("hidden");
+
+      if (!selectedAddressId) {
+        errorEl.textContent = "Please select or add a shipping address.";
+        errorEl.classList.remove("hidden");
+        return;
+      }
+
+      const placeBtn = document.getElementById("place-order-btn");
+      setButtonLoading(placeBtn, true, "Placing order...");
+
+      try {
+        const result = await apiRequest(`/builds/${buildId}/checkout`, {
+          method: "POST",
+          body: {
+            address_id: selectedAddressId,
+            payment_method: document.getElementById("payment_method").value,
+            notes: document.getElementById("notes").value || null,
+          },
+        });
+
+        layoutEl.classList.add("hidden");
+        confirmationEl.classList.remove("hidden");
+        renderConfirmation(result.data);
+      } catch (error) {
+        errorEl.textContent = error.message || "Could not place your order.";
+        errorEl.classList.remove("hidden");
+      } finally {
+        setButtonLoading(placeBtn, false);
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>

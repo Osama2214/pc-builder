@@ -1,0 +1,87 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>My Orders — PC Builder</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <div class="page">
+    <div class="container">
+      <div class="page-header">
+        <h1>My Orders</h1>
+      </div>
+
+      <div id="state" class="state-message">Loading your orders...</div>
+      <div id="orders-list"></div>
+      <div id="pagination" class="pagination hidden"></div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/format.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/cart-drawer.js"></script>
+  <script src="js/custom-select.js"></script>
+  <script src="js/toast.js"></script>
+  <script>
+    Auth.requireAuth();
+
+    const stateEl = document.getElementById("state");
+    const listEl = document.getElementById("orders-list");
+    const paginationEl = document.getElementById("pagination");
+
+    async function loadOrders(page = 1) {
+      try {
+        const result = await apiRequest(`/orders?page=${page}`);
+
+        if (result.data.length === 0) {
+          stateEl.textContent = "You haven't placed any orders yet.";
+          return;
+        }
+
+        stateEl.classList.add("hidden");
+        listEl.innerHTML = result.data.map(renderOrderRow).join("");
+        renderPagination(result.meta, page);
+      } catch (error) {
+        stateEl.textContent = error.message || "Could not load your orders.";
+      }
+    }
+
+    function renderOrderRow(order) {
+      const date = new Date(order.created_at).toLocaleDateString();
+      return `
+        <a href="order.html?id=${order.id}" class="list-row" style="text-decoration:none; color:inherit;">
+          <div class="list-row-main">
+            <div class="list-row-title">${escapeHtml(order.order_number)}</div>
+            <div class="list-row-meta">${date} · ${order.items.length} item${order.items.length === 1 ? "" : "s"}</div>
+          </div>
+          <div class="list-row-actions">
+            <span class="status-badge status-${order.status}">${order.status}</span>
+            <strong>${formatPrice(order.total_price)}</strong>
+          </div>
+        </a>
+      `;
+    }
+
+    function renderPagination(meta, currentPage) {
+      if (!meta || meta.last_page <= 1) return;
+      paginationEl.classList.remove("hidden");
+      paginationEl.innerHTML = `
+        <button type="button" id="prev-page" ${currentPage <= 1 ? "disabled" : ""}>Prev</button>
+        <span class="pagination-info">Page ${meta.current_page} of ${meta.last_page}</span>
+        <button type="button" id="next-page" ${currentPage >= meta.last_page ? "disabled" : ""}>Next</button>
+      `;
+      document.getElementById("prev-page").addEventListener("click", () => loadOrders(currentPage - 1));
+      document.getElementById("next-page").addEventListener("click", () => loadOrders(currentPage + 1));
+    }
+
+    loadOrders(1);
+  </script>
+</body>
+</html>

@@ -1,0 +1,276 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Compare Products — PC Builder</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <div class="page">
+    <div class="container">
+      <div class="page-header">
+        <h1>Compare Products</h1>
+        <button type="button" class="btn btn-auto" id="add-product-btn">+ Add product</button>
+      </div>
+
+      <div id="selected-preview" class="cmp-starter hidden" style="margin-bottom: 20px;">
+        <div class="cmp-slot-card" id="selected-preview-card"></div>
+        <button type="button" class="cmp-slot-card cmp-slot-add" id="selected-preview-add-btn">
+          <span class="cmp-slot-plus">+</span>
+          <span>Add product to compare</span>
+        </button>
+      </div>
+      <div id="state" class="state-message">Add at least 2 products to compare.</div>
+      <div id="compare-wrap" class="compare-table-wrap hidden">
+        <table class="compare-table" id="compare-table"></table>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 style="margin:0;">Add a product to compare</h3>
+        <button type="button" class="modal-close" id="picker-close">&times;</button>
+      </div>
+      <div class="modal-filters">
+        <input type="search" id="picker-search" placeholder="Search products..." style="flex:1;" />
+        <select id="picker-category">
+          <option value="">All categories</option>
+        </select>
+      </div>
+      <div class="modal-body">
+        <div id="picker-grid" class="picker-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/format.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/cart-drawer.js"></script>
+  <script src="js/custom-select.js"></script>
+  <script src="js/toast.js"></script>
+  <script>
+    const MAX_ITEMS = 5;
+    let selectedIds = [];
+    let pickerDebounce;
+
+    const SPEC_ROWS = [
+      { key: "price", label: "Price", format: (p) => formatPrice(p.sale_price ?? p.price) },
+      { key: "brand", label: "Brand", format: (p) => p.brand?.name ?? "—" },
+      { key: "category", label: "Category", format: (p) => p.category?.name ?? "—" },
+      { key: "stock", label: "Stock", format: (p) => (p.in_stock ? "In stock" : "Out of stock") },
+      { key: "socket", label: "Socket", format: (p) => p.specification?.socket ?? "—" },
+      { key: "chipset", label: "Chipset", format: (p) => p.specification?.chipset ?? "—" },
+      { key: "cores", label: "Cores", format: (p) => p.specification?.cores ?? "—" },
+      { key: "threads", label: "Threads", format: (p) => p.specification?.threads ?? "—" },
+      { key: "clock_speed", label: "Clock Speed", format: (p) => p.specification?.clock_speed ?? "—" },
+      { key: "ram_type", label: "RAM Type", format: (p) => p.specification?.ram_type ?? "—" },
+      { key: "memory_size", label: "Memory Size", format: (p) => p.specification?.memory_size ?? "—" },
+      { key: "memory_slots", label: "Memory Slots", format: (p) => p.specification?.memory_slots ?? "—" },
+      { key: "capacity", label: "Capacity", format: (p) => p.specification?.capacity ?? "—" },
+      { key: "power_draw", label: "Power Draw", format: (p) => (p.specification?.power_draw ? `${p.specification.power_draw} W` : "—") },
+      { key: "wattage", label: "Wattage", format: (p) => (p.specification?.wattage ? `${p.specification.wattage} W` : "—") },
+    ];
+
+    async function loadCategories() {
+      try {
+        const result = await apiRequest("/categories", { auth: false });
+        const select = document.getElementById("picker-category");
+        result.data.forEach((category) => {
+          const option = document.createElement("option");
+          option.value = category.id;
+          option.textContent = category.name;
+          select.appendChild(option);
+        });
+      } catch (error) {
+        // optional filter
+      }
+    }
+
+    async function refreshComparison() {
+      const stateEl = document.getElementById("state");
+      const wrapEl = document.getElementById("compare-wrap");
+      const previewEl = document.getElementById("selected-preview");
+
+      if (selectedIds.length < 2) {
+        wrapEl.classList.add("hidden");
+
+        if (selectedIds.length === 1) {
+          await showSelectedPreview();
+          stateEl.textContent = "Add 1 more product to compare.";
+        } else {
+          previewEl.classList.add("hidden");
+          stateEl.textContent = "Add at least 2 products to compare.";
+        }
+
+        stateEl.classList.remove("hidden");
+        return;
+      }
+
+      previewEl.classList.add("hidden");
+
+      try {
+        const result = await apiRequest(`/compare/products?ids=${selectedIds.join(",")}`, { auth: false });
+        renderTable(result.data);
+        stateEl.classList.add("hidden");
+        wrapEl.classList.remove("hidden");
+      } catch (error) {
+        stateEl.classList.remove("hidden");
+        wrapEl.classList.add("hidden");
+        stateEl.textContent = error.message || "Could not load comparison.";
+      }
+    }
+
+    async function showSelectedPreview() {
+      const previewEl = document.getElementById("selected-preview");
+      const cardEl = document.getElementById("selected-preview-card");
+      try {
+        const result = await apiRequest(`/products/${selectedIds[0]}`, { auth: false });
+        const product = result.data;
+        const imageUrl = getProductImageUrl(product);
+        const thumb = imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" />` : "No image";
+        cardEl.innerHTML = `
+          <div class="picker-card-thumb">${thumb}</div>
+          <div class="picker-card-name">${escapeHtml(product.name)}</div>
+          <div class="picker-card-price">${formatPrice(product.sale_price ?? product.price)}</div>
+        `;
+        previewEl.classList.remove("hidden");
+      } catch (error) {
+        previewEl.classList.add("hidden");
+      }
+    }
+
+    document.getElementById("selected-preview-add-btn").addEventListener("click", () => {
+      document.getElementById("add-product-btn").click();
+    });
+
+    function renderTable(products) {
+      const table = document.getElementById("compare-table");
+
+      const headerRow = `
+        <tr>
+          <th></th>
+          ${products.map((p) => `
+            <th>
+              ${escapeHtml(p.name)}
+              <br /><button type="button" class="compare-remove-btn" data-remove="${p.id}">Remove</button>
+            </th>
+          `).join("")}
+        </tr>
+      `;
+
+      const nameRow = `
+        <tr>
+          <td>Name</td>
+          ${products.map((p) => `<td><a href="product.html?id=${p.id}">${escapeHtml(p.name)}</a></td>`).join("")}
+        </tr>
+      `;
+
+      const rows = SPEC_ROWS.map(
+        (row) => `
+          <tr>
+            <td>${row.label}</td>
+            ${products.map((p) => `<td>${escapeHtml(String(row.format(p)))}</td>`).join("")}
+          </tr>
+        `
+      ).join("");
+
+      table.innerHTML = `<thead>${headerRow}</thead><tbody>${nameRow}${rows}</tbody>`;
+
+      table.querySelectorAll("[data-remove]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          selectedIds = selectedIds.filter((id) => id !== Number(btn.dataset.remove));
+          refreshComparison();
+        });
+      });
+    }
+
+    // Picker
+    document.getElementById("add-product-btn").addEventListener("click", () => {
+      if (selectedIds.length >= MAX_ITEMS) {
+        showToast(`You can compare at most ${MAX_ITEMS} products.`, "info");
+        return;
+      }
+      document.getElementById("picker-search").value = "";
+      document.getElementById("picker-category").value = "";
+      document.getElementById("modal-overlay").classList.remove("hidden");
+      loadPickerProducts();
+    });
+
+    document.getElementById("picker-close").addEventListener("click", closePicker);
+    document.getElementById("modal-overlay").addEventListener("click", (e) => {
+      if (e.target.id === "modal-overlay") closePicker();
+    });
+
+    function closePicker() {
+      document.getElementById("modal-overlay").classList.add("hidden");
+    }
+
+    async function loadPickerProducts() {
+      const grid = document.getElementById("picker-grid");
+      grid.innerHTML = `<p class="state-message">Loading...</p>`;
+
+      const params = new URLSearchParams();
+      const search = document.getElementById("picker-search").value.trim();
+      const category = document.getElementById("picker-category").value;
+      if (search) params.set("search", search);
+      if (category) params.set("category_id", category);
+
+      try {
+        const result = await apiRequest(`/products?${params.toString()}`, { auth: false });
+        const items = result.data.filter((p) => !selectedIds.includes(p.id));
+
+        if (items.length === 0) {
+          grid.innerHTML = `<p class="state-message">No more products found.</p>`;
+          return;
+        }
+
+        grid.innerHTML = items.map(renderPickerCard).join("");
+        items.forEach((product) => {
+          document.getElementById(`pick-${product.id}`).addEventListener("click", () => {
+            selectedIds.push(product.id);
+            closePicker();
+            refreshComparison();
+          });
+        });
+      } catch (error) {
+        grid.innerHTML = `<p class="state-message">${escapeHtml(error.message || "Could not load products.")}</p>`;
+      }
+    }
+
+    function renderPickerCard(product) {
+      const imageUrl = getProductImageUrl(product);
+      const thumb = imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" />` : "No image";
+      return `
+        <button type="button" class="picker-card" id="pick-${product.id}">
+          <div class="picker-card-thumb">${thumb}</div>
+          <div class="picker-card-name">${escapeHtml(product.name)}</div>
+          <div class="picker-card-price">${formatPrice(product.sale_price ?? product.price)}</div>
+        </button>
+      `;
+    }
+
+    document.getElementById("picker-search").addEventListener("input", () => {
+      clearTimeout(pickerDebounce);
+      pickerDebounce = setTimeout(loadPickerProducts, 400);
+    });
+    document.getElementById("picker-category").addEventListener("change", loadPickerProducts);
+
+    // Preselect from query string, e.g. compare.html?ids=1,2,3
+    const preselected = new URLSearchParams(window.location.search).get("ids");
+    if (preselected) {
+      selectedIds = preselected.split(",").map(Number).filter(Boolean).slice(0, MAX_ITEMS);
+    }
+
+    loadCategories();
+    refreshComparison();
+  </script>
+</body>
+</html>

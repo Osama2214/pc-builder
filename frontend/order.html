@@ -1,0 +1,264 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Order — PC Builder</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <div class="page">
+    <div class="container">
+      <div id="state" class="state-message">Loading order...</div>
+
+      <div id="order-layout" class="checkout-layout hidden">
+        <div>
+          <div class="section-card" style="margin-top:0;">
+            <h3>Items</h3>
+            <div id="order-items"></div>
+          </div>
+
+          <div class="section-card">
+            <h3>Shipping address</h3>
+            <div id="order-address"></div>
+          </div>
+
+          <div class="section-card" id="notes-card" style="display:none;">
+            <h3>Notes</h3>
+            <p id="order-notes" style="margin:0;"></p>
+          </div>
+        </div>
+
+        <div class="section-card" style="margin-top:0;">
+          <h3 id="order-number"></h3>
+          <div class="profile-info-row hidden" id="order-customer-row"><span>Customer</span><span id="order-customer"></span></div>
+          <div class="profile-info-row"><span>Status</span><span id="order-status" class="status-badge"></span></div>
+          <div class="profile-info-row"><span>Payment</span><span id="order-payment-status" class="status-badge"></span></div>
+          <div class="profile-info-row"><span>Payment method</span><span id="order-payment-method"></span></div>
+          <div class="summary-row total"><span>Total</span><span id="order-total"></span></div>
+
+          <div class="field-error" id="order-action-error" style="margin-top:10px;"></div>
+          <button type="button" class="btn" id="buy-again-btn" style="margin-top:14px;">Buy Again</button>
+          <button type="button" class="btn btn-secondary" id="cancel-btn" style="margin-top:10px;">Cancel Order</button>
+
+          <div id="admin-controls" class="hidden" style="margin-top:18px; padding-top:14px; border-top:1px solid var(--color-border);">
+            <div class="field">
+              <label for="status-select">Order status (admin)</label>
+              <select id="status-select">
+                <option value="pending">Pending</option>
+                <option value="processing">Processing</option>
+                <option value="shipped">Shipped</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <button type="button" class="btn btn-secondary btn-auto" id="update-status-btn">Update Status</button>
+
+            <div class="field" style="margin-top:16px;">
+              <label for="payment-status-select">Payment status (admin)</label>
+              <select id="payment-status-select">
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="failed">Failed</option>
+                <option value="refunded">Refunded</option>
+              </select>
+            </div>
+            <button type="button" class="btn btn-secondary btn-auto" id="update-payment-btn">Update Payment</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/format.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/cart-drawer.js"></script>
+  <script src="js/custom-select.js"></script>
+  <script src="js/toast.js"></script>
+  <script src="js/confirm-dialog.js"></script>
+  <script>
+    Auth.requireAuth();
+
+    const orderId = new URLSearchParams(window.location.search).get("id");
+    const stateEl = document.getElementById("state");
+    const layoutEl = document.getElementById("order-layout");
+    const CANCELLABLE = ["pending", "processing"];
+    let currentOrderItems = [];
+
+    async function loadOrder() {
+      if (!orderId) {
+        stateEl.textContent = "No order specified.";
+        return;
+      }
+
+      try {
+        const result = await apiRequest(`/orders/${orderId}`);
+        render(result.data);
+      } catch (error) {
+        stateEl.textContent = error.status === 404 || error.status === 403
+          ? "Order not found."
+          : (error.message || "Could not load order.");
+      }
+    }
+
+    function render(order) {
+      stateEl.classList.add("hidden");
+      layoutEl.classList.remove("hidden");
+      currentOrderItems = order.items;
+
+      document.title = `${order.order_number} — PC Builder`;
+      document.getElementById("order-number").textContent = order.order_number;
+
+      const statusEl = document.getElementById("order-status");
+      statusEl.textContent = order.status;
+      statusEl.className = `status-badge status-${order.status}`;
+
+      const paymentStatusEl = document.getElementById("order-payment-status");
+      paymentStatusEl.textContent = order.payment_status;
+      paymentStatusEl.className = `status-badge status-${order.payment_status}`;
+
+      document.getElementById("order-payment-method").textContent = order.payment_method || "—";
+      document.getElementById("order-total").textContent = formatPrice(order.total_price);
+
+      document.getElementById("order-items").innerHTML = order.items
+        .map(
+          (item) => `
+            <div class="cart-item">
+              <div class="cart-item-info">
+                <div class="cart-item-name">${escapeHtml(item.product.name)}</div>
+                <div class="cart-item-price">${formatPrice(item.price)} × ${item.quantity}</div>
+              </div>
+              <div style="font-weight:600;">${formatPrice(item.line_total)}</div>
+            </div>
+          `
+        )
+        .join("");
+
+      const address = order.address;
+      document.getElementById("order-address").innerHTML = address
+        ? `${escapeHtml(address.street)}<br />${escapeHtml(address.city)}, ${escapeHtml(address.country)}${address.phone ? `<br />${escapeHtml(address.phone)}` : ""}`
+        : "—";
+
+      if (order.notes) {
+        document.getElementById("notes-card").style.display = "block";
+        document.getElementById("order-notes").textContent = order.notes;
+      }
+
+      const isAdmin = Auth.getUser()?.role === "admin";
+
+      const customerRow = document.getElementById("order-customer-row");
+      if (isAdmin && order.user) {
+        document.getElementById("order-customer").textContent = `${order.user.name} (${order.user.email})`;
+        customerRow.classList.remove("hidden");
+      } else {
+        customerRow.classList.add("hidden");
+      }
+
+      const buyAgainBtn = document.getElementById("buy-again-btn");
+      const cancelBtn = document.getElementById("cancel-btn");
+      buyAgainBtn.classList.toggle("hidden", isAdmin);
+      if (!isAdmin && CANCELLABLE.includes(order.status)) {
+        cancelBtn.classList.remove("hidden");
+        cancelBtn.onclick = () => cancelOrder();
+      } else {
+        cancelBtn.classList.add("hidden");
+      }
+
+      const adminControls = document.getElementById("admin-controls");
+      if (isAdmin) {
+        adminControls.classList.remove("hidden");
+        document.getElementById("status-select").value = order.status;
+        document.getElementById("payment-status-select").value = order.payment_status;
+      } else {
+        adminControls.classList.add("hidden");
+      }
+    }
+
+    document.getElementById("buy-again-btn").addEventListener("click", async () => {
+      const errorEl = document.getElementById("order-action-error");
+      errorEl.textContent = "";
+
+      const btn = document.getElementById("buy-again-btn");
+      btn.disabled = true;
+      const originalText = btn.textContent;
+      btn.textContent = "Adding to cart...";
+
+      const failed = [];
+      for (const item of currentOrderItems) {
+        try {
+          await apiRequest("/cart/items", { method: "POST", body: { product_id: item.product.id, quantity: item.quantity } });
+        } catch (error) {
+          failed.push(item.product.name);
+        }
+      }
+
+      btn.disabled = false;
+      btn.textContent = originalText;
+      refreshCartBadge();
+
+      if (failed.length === currentOrderItems.length) {
+        errorEl.textContent = "Could not add any of these items to your cart — they may no longer be available.";
+        return;
+      }
+
+      if (failed.length > 0) {
+        showToast(`Added to cart, but couldn't add: ${failed.join(", ")}.`, "info");
+      } else {
+        showToast("All items added to your cart.", "success");
+      }
+      openCartDrawer();
+    });
+
+    async function cancelOrder() {
+      if (!(await showConfirm("Cancel this order?"))) return;
+      const errorEl = document.getElementById("order-action-error");
+      errorEl.textContent = "";
+
+      try {
+        const result = await apiRequest(`/orders/${orderId}/cancel`, { method: "POST" });
+        render(result.data);
+      } catch (error) {
+        errorEl.textContent = error.message || "Could not cancel this order.";
+      }
+    }
+
+    document.getElementById("update-status-btn").addEventListener("click", async () => {
+      const errorEl = document.getElementById("order-action-error");
+      errorEl.textContent = "";
+      const newStatus = document.getElementById("status-select").value;
+
+      if (!(await showConfirm(`Set order status to "${newStatus}"?`))) return;
+
+      try {
+        const result = await apiRequest(`/orders/${orderId}/status`, { method: "PATCH", body: { status: newStatus } });
+        render(result.data);
+      } catch (error) {
+        errorEl.textContent = error.message || "Could not update status.";
+      }
+    });
+
+    document.getElementById("update-payment-btn").addEventListener("click", async () => {
+      const errorEl = document.getElementById("order-action-error");
+      errorEl.textContent = "";
+      const newStatus = document.getElementById("payment-status-select").value;
+
+      try {
+        const result = await apiRequest(`/orders/${orderId}/payment-status`, {
+          method: "PATCH",
+          body: { payment_status: newStatus },
+        });
+        render(result.data);
+      } catch (error) {
+        errorEl.textContent = error.message || "Could not update payment status.";
+      }
+    });
+
+    loadOrder();
+  </script>
+</body>
+</html>

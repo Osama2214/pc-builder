@@ -1,0 +1,654 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Admin: Edit Product — PC Builder</title>
+  <link rel="stylesheet" href="../css/main.css" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <div class="page">
+    <div class="container" style="max-width: 800px;">
+      <div class="page-header">
+        <h1 id="page-title">Add Product</h1>
+      </div>
+
+      <div class="section-card" id="images-card">
+        <h3>Images</h3>
+        <p style="color: var(--color-text-muted); font-size: 0.85rem; margin-top: -8px;">
+          Recommended: 4:3 images (e.g. 1200×900px) so nothing gets cropped oddly. Any size works — it's cropped to fit otherwise. The first image uploaded becomes primary until you change it.
+        </p>
+        <p class="state-message" id="images-not-ready">Save the product first — then you'll be able to upload images here.</p>
+        <div id="images-ready" class="hidden">
+          <div id="images-grid" class="product-grid" style="margin-bottom: 16px;"></div>
+          <div class="file-upload">
+            <input type="file" id="image-input" class="file-upload-input" accept="image/png,image/jpeg,image/webp" multiple />
+            <label for="image-input" class="file-upload-label">Choose Images</label>
+            <span class="file-upload-filename" id="image-input-filename">No images chosen</span>
+          </div>
+          <div class="field-error" id="image-error" style="margin-top:8px;"></div>
+        </div>
+      </div>
+
+      <form id="product-form" novalidate>
+        <div class="section-card">
+          <h3>Basic info</h3>
+          <div class="alert alert-danger hidden"></div>
+
+          <div class="field">
+            <label for="category_id">Category</label>
+            <select id="category_id" name="category_id" required></select>
+            <div class="field-error" data-error-for="category_id"></div>
+          </div>
+          <div class="field">
+            <label for="brand_id">Brand</label>
+            <select id="brand_id" name="brand_id" required></select>
+            <div class="field-error" data-error-for="brand_id"></div>
+          </div>
+          <div class="field">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" required />
+            <div class="field-error" data-error-for="name"></div>
+          </div>
+          <div class="field">
+            <label for="sku">SKU
+              <span class="field-hint" tabindex="0">?
+                <span class="field-hint-text">A unique code you assign to identify this product internally (e.g. for inventory or ordering) — separate from the name, and no two products can share one.</span>
+              </span>
+            </label>
+            <input type="text" id="sku" name="sku" required />
+            <div class="field-error" data-error-for="sku"></div>
+          </div>
+          <div class="field">
+            <label for="slug">Slug (optional, auto-generated if empty)
+              <span class="field-hint" tabindex="0">?
+                <span class="field-hint-text">The URL-friendly version of the product name (e.g. "asus-rog-z790") used in the product page link. Leave empty and it's generated automatically from the name.</span>
+              </span>
+            </label>
+            <input type="text" id="slug" name="slug" />
+            <div class="field-error" data-error-for="slug"></div>
+          </div>
+          <div class="field">
+            <label for="description">Description</label>
+            <textarea id="description" name="description"></textarea>
+            <div class="field-error" data-error-for="description"></div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <h3>Pricing &amp; stock</h3>
+          <div class="field">
+            <label for="price">Price</label>
+            <input type="number" step="0.01" min="0" id="price" name="price" required />
+            <div class="field-error" data-error-for="price"></div>
+          </div>
+          <div class="field">
+            <label for="sale_price">Sale price (optional)</label>
+            <input type="number" step="0.01" min="0" id="sale_price" name="sale_price" />
+            <div class="field-error" data-error-for="sale_price"></div>
+          </div>
+          <div class="field">
+            <label for="stock">Stock</label>
+            <input type="number" min="0" id="stock" name="stock" required />
+            <div class="field-error" data-error-for="stock"></div>
+          </div>
+          <div class="field">
+            <label for="warranty_months">Warranty (months, optional)</label>
+            <input type="number" min="0" id="warranty_months" name="warranty_months" />
+            <div class="field-error" data-error-for="warranty_months"></div>
+          </div>
+          <div class="field" style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="is_active" name="is_active" style="width:auto;" checked />
+            <label for="is_active" style="margin:0;">Active (visible to customers)</label>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <h3>Specifications <span style="color:var(--color-text-muted); font-weight:400; font-size:0.8rem;">(fill in whatever applies to this product's category)</span></h3>
+          <div id="spec-fields" style="display:grid; grid-template-columns: 1fr 1fr; gap: 0 20px;"></div>
+        </div>
+
+        <div class="section-card">
+          <h3>Custom specifications <span style="color:var(--color-text-muted); font-weight:400; font-size:0.8rem;">(add any extra field, for any category)</span></h3>
+          <div id="custom-spec-rows"></div>
+          <button type="button" class="link-btn" id="add-custom-spec">+ Add field</button>
+        </div>
+
+        <button type="submit" class="btn btn-auto" id="save-btn">Save Product</button>
+      </form>
+
+      <div class="section-card" id="benchmarks-card">
+        <h3>Benchmarks <span style="color:var(--color-text-muted); font-weight:400; font-size:0.8rem;">(performance results shown to customers, e.g. FPS in a game)</span></h3>
+        <p class="state-message" id="benchmarks-not-ready">Save the product first — then you'll be able to add benchmarks here.</p>
+        <div id="benchmarks-ready" class="hidden">
+          <div id="benchmarks-list" style="margin-bottom:16px;"></div>
+
+          <form id="benchmark-form" novalidate>
+            <input type="hidden" id="benchmark-id" />
+            <div class="alert alert-danger hidden"></div>
+            <div class="field">
+              <label for="benchmark_target_id">Game / Software</label>
+              <select id="benchmark_target_id" required></select>
+              <div class="field-error" data-error-for="benchmark_target_id"></div>
+            </div>
+            <div class="field">
+              <label for="benchmark_resolution">Resolution (optional)</label>
+              <input type="text" id="benchmark_resolution" placeholder="1440p" />
+              <div class="field-error" data-error-for="resolution"></div>
+            </div>
+            <div class="field">
+              <label for="benchmark_quality">Quality (optional)</label>
+              <input type="text" id="benchmark_quality" placeholder="Ultra" />
+              <div class="field-error" data-error-for="quality"></div>
+            </div>
+            <div class="field" id="benchmark-fps-field">
+              <label for="benchmark_fps">FPS</label>
+              <input type="number" id="benchmark_fps" min="0" />
+              <div class="field-error" data-error-for="fps"></div>
+            </div>
+            <div class="field" id="benchmark-score-field">
+              <label for="benchmark_score">Score</label>
+              <input type="number" id="benchmark_score" min="0" />
+              <div class="field-error" data-error-for="score"></div>
+            </div>
+            <div class="field" id="benchmark-unit-field">
+              <label for="benchmark_unit">Unit (optional, e.g. points, seconds)</label>
+              <input type="text" id="benchmark_unit" />
+              <div class="field-error" data-error-for="unit"></div>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <button type="submit" class="btn btn-secondary btn-auto" id="benchmark-save-btn">Add Benchmark</button>
+              <button type="button" class="btn btn-secondary btn-auto hidden" id="benchmark-cancel-btn">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/format.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/cart-drawer.js"></script>
+  <script src="../js/custom-select.js"></script>
+  <script src="../js/toast.js"></script>
+  <script src="../js/confirm-dialog.js"></script>
+  <script src="../js/form-helpers.js"></script>
+  <script>
+    Auth.requireAdmin();
+
+    const productId = new URLSearchParams(window.location.search).get("id");
+    const form = document.getElementById("product-form");
+
+    const SPEC_FIELDS = [
+      // CPU
+      { key: "socket", label: "Socket", type: "text" },
+      { key: "cores", label: "Cores", type: "number" },
+      { key: "threads", label: "Threads", type: "number" },
+      { key: "clock_speed", label: "Base Clock", type: "text" },
+      { key: "boost_clock", label: "Boost Clock", type: "text" },
+      { key: "cpu_generation", label: "CPU Generation", type: "text" },
+      { key: "architecture", label: "Architecture", type: "text" },
+      { key: "integrated_graphics", label: "Integrated Graphics", type: "text" },
+      { key: "cache_size", label: "Total Cache", type: "text" },
+      { key: "l1_cache", label: "L1 Cache", type: "text" },
+      { key: "l2_cache", label: "L2 Cache", type: "text" },
+      { key: "l3_cache", label: "L3 Cache", type: "text" },
+
+      // Motherboard
+      { key: "chipset", label: "Chipset", type: "text" },
+      { key: "form_factor", label: "Form Factor", type: "text" },
+      { key: "pcie_version", label: "PCIe Version", type: "text" },
+      { key: "pcie_slots", label: "PCIe Slots", type: "number" },
+      { key: "memory_slots", label: "Memory Slots", type: "number" },
+      { key: "max_memory", label: "Max Memory", type: "text" },
+      { key: "m2_slots", label: "M.2 Slots", type: "number" },
+      { key: "sata_ports", label: "SATA Ports", type: "number" },
+      { key: "wifi", label: "Wi-Fi", type: "text" },
+
+      // GPU
+      { key: "memory_type", label: "VRAM Type", type: "text" },
+      { key: "length_mm", label: "Length (mm)", type: "number" },
+      { key: "video_ports", label: "Video Ports", type: "text" },
+
+      // RAM
+      { key: "ram_type", label: "RAM Type", type: "text" },
+      { key: "memory_size", label: "Memory Size", type: "text" },
+      { key: "ram_speed", label: "Speed (MHz)", type: "text" },
+      { key: "cas_latency", label: "CAS Latency", type: "text" },
+      { key: "kit_config", label: "Kit Configuration", type: "text" },
+
+      // Storage
+      { key: "capacity", label: "Capacity", type: "text" },
+      { key: "storage_type", label: "Storage Type", type: "text" },
+      { key: "storage_interface", label: "Interface", type: "text" },
+      { key: "read_speed", label: "Read Speed (MB/s)", type: "number" },
+      { key: "write_speed", label: "Write Speed (MB/s)", type: "number" },
+
+      // PSU
+      { key: "wattage", label: "Wattage (W)", type: "number" },
+      { key: "efficiency_rating", label: "Efficiency Rating", type: "text" },
+      { key: "modular_type", label: "Modularity", type: "text" },
+
+      // Shared / power
+      { key: "power_draw", label: "Power Draw (W)", type: "number" },
+      { key: "max_gpu_length", label: "Max GPU Length (mm)", type: "number" },
+
+      // Cooler
+      { key: "cooler_type", label: "Cooler Type", type: "text" },
+      { key: "fan_size", label: "Fan Size", type: "text" },
+      { key: "max_tdp", label: "Max TDP Supported (W)", type: "number" },
+
+      // Monitor
+      { key: "screen_size", label: "Screen Size", type: "text" },
+      { key: "resolution", label: "Resolution", type: "text" },
+      { key: "refresh_rate", label: "Refresh Rate", type: "text" },
+      { key: "panel_type", label: "Panel Type", type: "text" },
+      { key: "response_time", label: "Response Time", type: "text" },
+    ];
+
+    // Which of the fields above apply to each category, keyed by category ID —
+    // the one property on a category that can never change from the Categories
+    // page (name and slug are both editable there and would silently break this
+    // matching). IDs are specific to this database: 1 CPUs, 2 Graphics Cards,
+    // 3 Motherboards, 4 Memory, 5 Power Supplies, 6 Storage, 8 Laptops, 10 Cases,
+    // 11 Coolers, 12 Monitor.
+    const CATEGORY_SPEC_FIELDS = {
+      1: ["socket", "cores", "threads", "clock_speed", "boost_clock", "cpu_generation", "architecture", "integrated_graphics", "cache_size", "l1_cache", "l2_cache", "l3_cache", "power_draw"], // CPUs
+      3: ["socket", "chipset", "form_factor", "pcie_version", "pcie_slots", "ram_type", "memory_slots", "max_memory", "m2_slots", "sata_ports", "storage_interface", "wifi"], // Motherboards
+      2: ["pcie_version", "memory_size", "memory_type", "clock_speed", "boost_clock", "power_draw", "length_mm", "video_ports"], // Graphics Cards
+      4: ["ram_type", "memory_size", "ram_speed", "cas_latency", "kit_config"], // Memory
+      6: ["capacity", "storage_type", "storage_interface", "form_factor", "read_speed", "write_speed"], // Storage
+      5: ["wattage", "efficiency_rating", "form_factor", "modular_type"], // Power Supplies
+      8: ["cores", "threads", "clock_speed", "ram_type", "memory_size", "capacity", "storage_type"], // Laptops
+      10: ["form_factor", "max_gpu_length"], // Cases
+      11: ["socket", "cooler_type", "fan_size", "max_tdp"], // Coolers
+      12: ["screen_size", "resolution", "refresh_rate", "panel_type", "response_time", "video_ports"], // Monitor
+    };
+
+    function renderSpecFields(categoryId, values) {
+      values = values || {};
+      // Unmapped categories (e.g. one just added in Categories) get no predefined
+      // fields — "Custom specifications" below covers them instead of dumping every field.
+      const allowedKeys = CATEGORY_SPEC_FIELDS[categoryId] || [];
+      const fields = SPEC_FIELDS.filter((f) => allowedKeys.includes(f.key));
+
+      document.getElementById("spec-fields").innerHTML = fields.length
+        ? fields
+            .map(
+              (f) => `
+                <div class="field">
+                  <label for="spec_${f.key}">${f.label}</label>
+                  <input type="${f.type}" id="spec_${f.key}" name="spec_${f.key}" ${f.type === "number" ? 'min="0"' : ""} value="${values[f.key] ?? ""}" />
+                </div>
+              `
+            )
+            .join("")
+        : `<p class="state-message" style="grid-column: 1 / -1;">No predefined fields for this category — use "Custom specifications" below.</p>`;
+    }
+
+    function collectSpecValues() {
+      const values = {};
+      SPEC_FIELDS.forEach((f) => {
+        const el = document.getElementById(`spec_${f.key}`);
+        if (el && el.value !== "") values[f.key] = el.value;
+      });
+      return values;
+    }
+
+    document.getElementById("category_id").addEventListener("change", (event) => {
+      renderSpecFields(Number(event.target.value), collectSpecValues());
+    });
+
+    // Free-form key/value pairs, independent of category — lets the admin cover
+    // any spec the fixed fields above don't anticipate (new categories included).
+    function addCustomSpecRow(key, value) {
+      const row = document.createElement("div");
+      row.className = "custom-spec-row";
+      row.style.cssText = "display:flex; gap:10px; align-items:center; margin-bottom:10px;";
+      row.innerHTML = `
+        <input type="text" class="custom-spec-key" placeholder="Field name (e.g. Color)" style="flex:1;" />
+        <input type="text" class="custom-spec-value" placeholder="Value" style="flex:1;" />
+        <button type="button" class="cart-item-remove">Remove</button>
+      `;
+      row.querySelector(".custom-spec-key").value = key || "";
+      row.querySelector(".custom-spec-value").value = value || "";
+      row.querySelector("button").addEventListener("click", () => row.remove());
+      document.getElementById("custom-spec-rows").appendChild(row);
+    }
+
+    function collectCustomSpecifications() {
+      return Array.from(document.querySelectorAll(".custom-spec-row"))
+        .map((row) => ({
+          key: row.querySelector(".custom-spec-key").value.trim(),
+          value: row.querySelector(".custom-spec-value").value.trim(),
+        }))
+        .filter((pair) => pair.key !== "");
+    }
+
+    document.getElementById("add-custom-spec").addEventListener("click", () => addCustomSpecRow("", ""));
+
+    async function loadOptions() {
+      const [categories, brands] = await Promise.all([
+        apiRequest("/categories", { auth: false }),
+        apiRequest("/brands", { auth: false }),
+      ]);
+      const catSelect = document.getElementById("category_id");
+      categories.data.forEach((c) => {
+        const opt = document.createElement("option");
+        opt.value = c.id;
+        opt.textContent = c.name;
+        catSelect.appendChild(opt);
+      });
+      const brandSelect = document.getElementById("brand_id");
+      brands.data.forEach((b) => {
+        const opt = document.createElement("option");
+        opt.value = b.id;
+        opt.textContent = b.name;
+        brandSelect.appendChild(opt);
+      });
+
+      renderSpecFields(Number(catSelect.value));
+    }
+
+    async function loadProduct() {
+      if (!productId) return;
+
+      document.getElementById("page-title").textContent = "Edit Product";
+      document.getElementById("images-not-ready").classList.add("hidden");
+      document.getElementById("images-ready").classList.remove("hidden");
+      document.getElementById("benchmarks-not-ready").classList.add("hidden");
+      document.getElementById("benchmarks-ready").classList.remove("hidden");
+      loadBenchmarks();
+
+      const result = await apiRequest(`/products/${productId}`);
+      const p = result.data;
+
+      form.category_id.value = p.category.id;
+      form.brand_id.value = p.brand.id;
+      form.name.value = p.name;
+      form.sku.value = p.sku;
+      form.slug.value = p.slug;
+      form.description.value = p.description || "";
+      form.price.value = p.price;
+      form.sale_price.value = p.sale_price ?? "";
+      form.stock.value = p.stock;
+      form.warranty_months.value = p.warranty_months ?? "";
+      form.is_active.checked = p.is_active;
+
+      renderSpecFields(p.category.id, p.specification || {});
+
+      document.getElementById("custom-spec-rows").innerHTML = "";
+      (p.specification?.custom_specifications || []).forEach((pair) => addCustomSpecRow(pair.key, pair.value));
+
+      renderImages(p.images || []);
+    }
+
+    function renderImages(images) {
+      const grid = document.getElementById("images-grid");
+      if (images.length === 0) {
+        grid.innerHTML = `<p class="state-message">No images yet.</p>`;
+        return;
+      }
+
+      grid.innerHTML = images.map(
+        (img) => `
+          <div class="product-card">
+            <div class="product-thumb"><img src="${escapeHtml(img.url)}" alt="" /></div>
+            <div class="product-card-body">
+              ${img.is_primary ? '<span class="badge badge-success">Primary</span>' : `<button type="button" class="link-btn" id="primary-${img.id}">Set primary</button>`}
+              <button type="button" class="cart-item-remove" id="delete-img-${img.id}">Delete</button>
+            </div>
+          </div>
+        `
+      ).join("");
+
+      images.forEach((img) => {
+        const primaryBtn = document.getElementById(`primary-${img.id}`);
+        if (primaryBtn) primaryBtn.addEventListener("click", () => setPrimary(img.id));
+        document.getElementById(`delete-img-${img.id}`).addEventListener("click", () => deleteImage(img.id));
+      });
+    }
+
+    async function setPrimary(imageId) {
+      try {
+        await apiRequest(`/products/${productId}/images/${imageId}/primary`, { method: "PATCH" });
+        const result = await apiRequest(`/products/${productId}`);
+        renderImages(result.data.images);
+      } catch (error) {
+        showToast(error.message || "Could not set primary image.", "danger");
+      }
+    }
+
+    async function deleteImage(imageId) {
+      if (!(await showConfirm("Delete this image?"))) return;
+      try {
+        await apiRequest(`/products/${productId}/images/${imageId}`, { method: "DELETE" });
+        const result = await apiRequest(`/products/${productId}`);
+        renderImages(result.data.images);
+      } catch (error) {
+        showToast(error.message || "Could not delete this image.", "danger");
+      }
+    }
+
+    document.getElementById("image-input").addEventListener("change", async (event) => {
+      const files = event.target.files;
+      const filenameEl = document.getElementById("image-input-filename");
+      if (!files || files.length === 0) {
+        filenameEl.textContent = "No images chosen";
+        return;
+      }
+      filenameEl.textContent = files.length === 1 ? files[0].name : `${files.length} images selected`;
+
+      const errorEl = document.getElementById("image-error");
+      errorEl.textContent = "";
+
+      const formData = new FormData();
+      [...files].forEach((file) => formData.append("images[]", file));
+
+      try {
+        await apiRequest(`/products/${productId}/images`, { method: "POST", body: formData });
+        const result = await apiRequest(`/products/${productId}`);
+        renderImages(result.data.images);
+        event.target.value = "";
+        filenameEl.textContent = "No images chosen";
+      } catch (error) {
+        errorEl.textContent = error.message || "Could not upload images.";
+      }
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      clearFormErrors(form);
+      const btn = document.getElementById("save-btn");
+      setButtonLoading(btn, true, "Saving...");
+
+      const specifications = {};
+      SPEC_FIELDS.forEach((f) => {
+        const el = document.getElementById(`spec_${f.key}`);
+        if (el && el.value !== "") {
+          specifications[f.key] = f.type === "number" ? Number(el.value) : el.value;
+        }
+      });
+      const customSpecifications = collectCustomSpecifications();
+      if (customSpecifications.length > 0) {
+        specifications.custom_specifications = customSpecifications;
+      }
+
+      const payload = {
+        category_id: Number(form.category_id.value),
+        brand_id: Number(form.brand_id.value),
+        name: form.name.value,
+        sku: form.sku.value,
+        slug: form.slug.value || null,
+        description: form.description.value || null,
+        price: Number(form.price.value),
+        sale_price: form.sale_price.value ? Number(form.sale_price.value) : null,
+        stock: Number(form.stock.value),
+        warranty_months: form.warranty_months.value ? Number(form.warranty_months.value) : null,
+        is_active: form.is_active.checked,
+      };
+      if (Object.keys(specifications).length > 0) {
+        payload.specifications = specifications;
+      }
+      if (!payload.slug) delete payload.slug;
+
+      try {
+        if (productId) {
+          await apiRequest(`/products/${productId}`, { method: "PUT", body: payload });
+        } else {
+          const result = await apiRequest("/products", { method: "POST", body: payload });
+          window.location.href = `product-edit.html?id=${result.data.id}`;
+          return;
+        }
+        showToast("Product saved.", "success");
+      } catch (error) {
+        displayFormErrors(form, error);
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    });
+
+    let benchmarkTargetsById = {};
+
+    async function loadBenchmarkTargets() {
+      const result = await apiRequest("/benchmark-targets", { auth: false });
+      const select = document.getElementById("benchmark_target_id");
+      result.data.forEach((target) => {
+        benchmarkTargetsById[target.id] = target;
+        const opt = document.createElement("option");
+        opt.value = target.id;
+        opt.textContent = `${target.name} (${target.type})`;
+        select.appendChild(opt);
+      });
+      toggleBenchmarkResultFields();
+    }
+
+    function toggleBenchmarkResultFields() {
+      const target = benchmarkTargetsById[document.getElementById("benchmark_target_id").value];
+      const isSoftware = target?.type === "software";
+      document.getElementById("benchmark-fps-field").classList.toggle("hidden", isSoftware);
+      document.getElementById("benchmark-score-field").classList.toggle("hidden", !isSoftware);
+      document.getElementById("benchmark-unit-field").classList.toggle("hidden", !isSoftware);
+    }
+
+    document.getElementById("benchmark_target_id").addEventListener("change", toggleBenchmarkResultFields);
+
+    async function loadBenchmarks() {
+      const result = await apiRequest(`/products/${productId}/benchmarks`, { auth: false });
+      renderBenchmarks(result.data);
+    }
+
+    function renderBenchmarks(items) {
+      const listEl = document.getElementById("benchmarks-list");
+      if (items.length === 0) {
+        listEl.innerHTML = `<p class="state-message">No benchmarks yet.</p>`;
+        return;
+      }
+
+      listEl.innerHTML = items.map((item) => {
+        const result = item.benchmark_target.type === "software"
+          ? `${item.score ?? "—"} ${item.unit || ""}`.trim()
+          : `${item.fps ?? "—"} FPS`;
+        const meta = [item.resolution, item.quality].filter(Boolean).join(" · ");
+        return `
+          <div class="list-row">
+            <div class="list-row-main">
+              <div class="list-row-title">${escapeHtml(item.benchmark_target.name)}</div>
+              <div class="list-row-meta">${meta ? escapeHtml(meta) + " · " : ""}${escapeHtml(result)}</div>
+            </div>
+            <div class="list-row-actions">
+              <button type="button" class="link-btn" id="edit-benchmark-${item.id}">Edit</button>
+              <button type="button" class="cart-item-remove" id="delete-benchmark-${item.id}">Delete</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      items.forEach((item) => {
+        document.getElementById(`edit-benchmark-${item.id}`).addEventListener("click", () => editBenchmark(item));
+        document.getElementById(`delete-benchmark-${item.id}`).addEventListener("click", () => deleteBenchmark(item.id));
+      });
+    }
+
+    function editBenchmark(item) {
+      document.getElementById("benchmark-id").value = item.id;
+      document.getElementById("benchmark_target_id").value = item.benchmark_target.id;
+      document.getElementById("benchmark_resolution").value = item.resolution || "";
+      document.getElementById("benchmark_quality").value = item.quality || "";
+      document.getElementById("benchmark_fps").value = item.fps ?? "";
+      document.getElementById("benchmark_score").value = item.score ?? "";
+      document.getElementById("benchmark_unit").value = item.unit || "";
+      toggleBenchmarkResultFields();
+      document.getElementById("benchmark-save-btn").textContent = "Update Benchmark";
+      document.getElementById("benchmark-cancel-btn").classList.remove("hidden");
+    }
+
+    function resetBenchmarkForm() {
+      const form = document.getElementById("benchmark-form");
+      form.reset();
+      document.getElementById("benchmark-id").value = "";
+      clearFormErrors(form);
+      toggleBenchmarkResultFields();
+      document.getElementById("benchmark-save-btn").textContent = "Add Benchmark";
+      document.getElementById("benchmark-cancel-btn").classList.add("hidden");
+    }
+
+    document.getElementById("benchmark-cancel-btn").addEventListener("click", resetBenchmarkForm);
+
+    document.getElementById("benchmark-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = document.getElementById("benchmark-form");
+      clearFormErrors(form);
+      const btn = document.getElementById("benchmark-save-btn");
+      setButtonLoading(btn, true, "Saving...");
+
+      const benchmarkId = document.getElementById("benchmark-id").value;
+      const isSoftware = benchmarkTargetsById[document.getElementById("benchmark_target_id").value]?.type === "software";
+
+      const payload = {
+        benchmark_target_id: Number(document.getElementById("benchmark_target_id").value),
+        resolution: document.getElementById("benchmark_resolution").value || null,
+        quality: document.getElementById("benchmark_quality").value || null,
+        fps: !isSoftware && document.getElementById("benchmark_fps").value ? Number(document.getElementById("benchmark_fps").value) : null,
+        score: isSoftware && document.getElementById("benchmark_score").value ? Number(document.getElementById("benchmark_score").value) : null,
+        unit: isSoftware ? (document.getElementById("benchmark_unit").value || null) : null,
+      };
+
+      try {
+        if (benchmarkId) {
+          await apiRequest(`/benchmarks/${benchmarkId}`, { method: "PATCH", body: payload });
+        } else {
+          await apiRequest(`/products/${productId}/benchmarks`, { method: "POST", body: payload });
+        }
+        resetBenchmarkForm();
+        loadBenchmarks();
+      } catch (error) {
+        displayFormErrors(form, error);
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    });
+
+    async function deleteBenchmark(id) {
+      if (!(await showConfirm("Delete this benchmark?"))) return;
+      try {
+        await apiRequest(`/benchmarks/${id}`, { method: "DELETE" });
+        loadBenchmarks();
+      } catch (error) {
+        showToast(error.message || "Could not delete this benchmark.", "danger");
+      }
+    }
+
+    (async () => {
+      await loadOptions();
+      await loadBenchmarkTargets();
+      await loadProduct();
+    })();
+  </script>
+</body>
+</html>

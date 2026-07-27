@@ -1,0 +1,193 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Admin: Brands — PC Builder</title>
+  <link rel="stylesheet" href="../css/main.css" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <div class="page">
+    <div class="container" style="max-width: 700px;">
+      <div class="page-header">
+        <h1>Brands</h1>
+        <button type="button" class="link-btn" id="toggle-form">+ Add brand</button>
+      </div>
+
+      <form id="item-form" class="section-card hidden" style="margin-top:0;" novalidate>
+        <div class="alert alert-danger hidden"></div>
+        <input type="hidden" id="item-id" />
+        <div class="field">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" required />
+          <div class="field-error" data-error-for="name"></div>
+        </div>
+        <div class="field">
+          <label for="logo">Logo (optional)</label>
+          <div id="logo-preview-row" class="hidden" style="margin-bottom:10px;">
+            <img id="logo-preview" alt="" style="width:64px; height:64px; object-fit:contain; background:var(--color-surface-2); border-radius:var(--radius-sm); border:1px solid var(--color-border);" />
+          </div>
+          <div class="file-upload">
+            <input type="file" id="logo" name="logo" class="file-upload-input" accept="image/png,image/jpeg,image/webp" />
+            <label for="logo" class="file-upload-label">Choose Logo</label>
+            <span class="file-upload-filename" id="logo-filename">No logo chosen</span>
+          </div>
+          <div class="field-error" data-error-for="logo"></div>
+        </div>
+        <div class="field">
+          <label for="logo_url">...or a Logo URL instead</label>
+          <input type="text" id="logo_url" name="logo_url" placeholder="https://example.com/logo.png" />
+          <div class="field-error" data-error-for="logo_url"></div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button type="submit" class="btn btn-auto" id="save-btn">Save</button>
+          <button type="button" class="btn btn-secondary btn-auto" id="cancel-btn">Cancel</button>
+        </div>
+      </form>
+
+      <div id="state" class="state-message">Loading brands...</div>
+      <div id="list"></div>
+    </div>
+  </div>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/format.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/cart-drawer.js"></script>
+  <script src="../js/custom-select.js"></script>
+  <script src="../js/toast.js"></script>
+  <script src="../js/confirm-dialog.js"></script>
+  <script src="../js/form-helpers.js"></script>
+  <script>
+    Auth.requireAdmin();
+
+    const stateEl = document.getElementById("state");
+    const listEl = document.getElementById("list");
+    const form = document.getElementById("item-form");
+
+    document.getElementById("logo").addEventListener("change", (event) => {
+      const files = event.target.files;
+      document.getElementById("logo-filename").textContent = files.length > 0 ? files[0].name : "No logo chosen";
+    });
+
+    async function load() {
+      try {
+        const result = await apiRequest("/brands", { auth: false });
+        render(result.data);
+      } catch (error) {
+        stateEl.textContent = error.message || "Could not load brands.";
+      }
+    }
+
+    function render(items) {
+      stateEl.classList.toggle("hidden", items.length > 0);
+      if (items.length === 0) stateEl.textContent = "No brands yet.";
+
+      listEl.innerHTML = items.map(
+        (item) => `
+          <div class="list-row">
+            <div style="width:48px; height:48px; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:var(--color-surface-2); border-radius:var(--radius-sm); overflow:hidden;">
+              ${item.logo ? `<img src="${escapeHtml(item.logo)}" alt="" style="width:100%; height:100%; object-fit:contain;" />` : `<span style="font-size:0.65rem; color:var(--color-text-muted);">No logo</span>`}
+            </div>
+            <div class="list-row-main">
+              <div class="list-row-title">${escapeHtml(item.name)}</div>
+            </div>
+            <div class="list-row-actions">
+              <button type="button" class="link-btn" id="edit-${item.id}">Edit</button>
+              <button type="button" class="cart-item-remove" id="delete-${item.id}">Delete</button>
+            </div>
+          </div>
+        `
+      ).join("");
+
+      items.forEach((item) => {
+        document.getElementById(`edit-${item.id}`).addEventListener("click", () => editItem(item));
+        document.getElementById(`delete-${item.id}`).addEventListener("click", () => deleteItem(item.id));
+      });
+    }
+
+    function showForm() {
+      form.classList.remove("hidden");
+    }
+
+    function hideForm() {
+      form.classList.add("hidden");
+      form.reset();
+      document.getElementById("item-id").value = "";
+      document.getElementById("logo-preview-row").classList.add("hidden");
+      document.getElementById("logo-filename").textContent = "No logo chosen";
+      clearFormErrors(form);
+    }
+
+    document.getElementById("toggle-form").addEventListener("click", () => {
+      hideForm();
+      showForm();
+    });
+    document.getElementById("cancel-btn").addEventListener("click", hideForm);
+
+    function editItem(item) {
+      document.getElementById("item-id").value = item.id;
+      form.name.value = item.name;
+
+      const previewRow = document.getElementById("logo-preview-row");
+      if (item.logo) {
+        document.getElementById("logo-preview").src = item.logo;
+        previewRow.classList.remove("hidden");
+      } else {
+        previewRow.classList.add("hidden");
+      }
+
+      showForm();
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      clearFormErrors(form);
+      const btn = document.getElementById("save-btn");
+      setButtonLoading(btn, true, "Saving...");
+
+      const id = document.getElementById("item-id").value;
+      const formData = new FormData();
+      formData.append("name", form.name.value);
+      if (form.logo.files[0]) {
+        formData.append("logo", form.logo.files[0]);
+      } else if (form.logo_url.value.trim()) {
+        formData.append("logo_url", form.logo_url.value.trim());
+      }
+
+      try {
+        if (id) {
+          // Laravel can't parse a multipart body on a real PUT request (a PHP
+          // limitation, not Laravel's) — spoof it via _method on a POST instead.
+          formData.append("_method", "PUT");
+          await apiRequest(`/brands/${id}`, { method: "POST", body: formData });
+        } else {
+          await apiRequest("/brands", { method: "POST", body: formData });
+        }
+        hideForm();
+        load();
+      } catch (error) {
+        displayFormErrors(form, error);
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    });
+
+    async function deleteItem(id) {
+      if (!(await showConfirm("Delete this brand?"))) return;
+      try {
+        await apiRequest(`/brands/${id}`, { method: "DELETE" });
+        load();
+      } catch (error) {
+        showToast(error.message || "Could not delete this brand.", "danger");
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>

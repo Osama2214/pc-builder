@@ -1,0 +1,48 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Products — PC Builder</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <div class="page">
+    <div class="container">
+      <div class="page-header">
+        <h1>Products</h1>
+      </div>
+
+      <div class="products-layout">
+        <aside class="filters-sidebar">
+          <div class="filters-sidebar-header">
+            <h3>Filters</h3>
+            <a href="#" id="filters-reset">Reset</a>
+          </div>
+          <div id="filters-sidebar-body"></div>
+          <button type="button" class="btn" id="filters-search-btn">Search</button>
+        </aside>
+
+        <div class="products-main">
+          <div id="products-state" class="state-message hidden"></div>
+          <div id="product-grid" class="product-grid"></div>
+          <div id="pagination" class="pagination hidden"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/format.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/cart-drawer.js"></script>
+  <script src="js/custom-select.js"></script>
+  <script src="js/toast.js"></script>
+  <script src="js/product-card.js"></script>
+  <script src="js/product-filters.js"></script>
+</body>
+</html>

@@ -1,0 +1,212 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>My Profile — PC Builder</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <div class="page">
+    <div class="container" style="max-width: 700px;">
+      <div class="page-header">
+        <h1>My Profile</h1>
+      </div>
+
+      <div class="section-card" style="margin-top:0;">
+        <h3>Account</h3>
+        <div class="profile-info-row"><span>Name</span><span id="profile-name"></span></div>
+        <div class="profile-info-row"><span>Email</span><span id="profile-email"></span></div>
+        <div style="margin-top: 14px; display:flex; gap: 16px; font-size: 0.9rem;">
+          <a href="orders.html">My Orders</a>
+          <a href="my-builds.html">My Builds</a>
+          <a href="wishlist.html">Wishlist</a>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="page-header" style="margin-bottom: 14px;">
+          <h3 style="margin:0;">Addresses</h3>
+          <button type="button" class="link-btn" id="toggle-new-address">+ Add address</button>
+        </div>
+
+        <div id="addresses-state" class="state-message">Loading addresses...</div>
+        <div id="addresses-list"></div>
+
+        <form id="address-form" class="hidden" style="margin-top: 16px;" novalidate>
+          <div class="alert alert-danger hidden"></div>
+          <input type="hidden" id="address-id" />
+          <div class="field">
+            <label for="city">City</label>
+            <input type="text" id="city" name="city" required />
+            <div class="field-error" data-error-for="city"></div>
+          </div>
+          <div class="field">
+            <label for="country">Country</label>
+            <input type="text" id="country" name="country" required />
+            <div class="field-error" data-error-for="country"></div>
+          </div>
+          <div class="field">
+            <label for="street">Street</label>
+            <input type="text" id="street" name="street" required />
+            <div class="field-error" data-error-for="street"></div>
+          </div>
+          <div class="field">
+            <label for="postal_code">Postal code (optional)</label>
+            <input type="text" id="postal_code" name="postal_code" />
+            <div class="field-error" data-error-for="postal_code"></div>
+          </div>
+          <div class="field">
+            <label for="phone">Phone (optional)</label>
+            <input type="text" id="phone" name="phone" />
+            <div class="field-error" data-error-for="phone"></div>
+          </div>
+          <div class="field" style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="is_default" name="is_default" style="width:auto;" />
+            <label for="is_default" style="margin:0;">Set as default</label>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button type="submit" class="btn btn-auto" id="save-address-btn">Save address</button>
+            <button type="button" class="btn btn-secondary btn-auto" id="cancel-address-btn">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/format.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/cart-drawer.js"></script>
+  <script src="js/custom-select.js"></script>
+  <script src="js/toast.js"></script>
+  <script src="js/confirm-dialog.js"></script>
+  <script src="js/form-helpers.js"></script>
+  <script>
+    Auth.requireAuth();
+
+    const user = Auth.getUser();
+    document.getElementById("profile-name").textContent = user?.name || "";
+    document.getElementById("profile-email").textContent = user?.email || "";
+
+    const stateEl = document.getElementById("addresses-state");
+    const listEl = document.getElementById("addresses-list");
+    const form = document.getElementById("address-form");
+
+    async function loadAddresses() {
+      try {
+        const result = await apiRequest("/addresses");
+        render(result.data);
+      } catch (error) {
+        stateEl.textContent = error.message || "Could not load addresses.";
+      }
+    }
+
+    function render(addresses) {
+      if (addresses.length === 0) {
+        stateEl.textContent = "No saved addresses yet.";
+      } else {
+        stateEl.classList.add("hidden");
+      }
+
+      listEl.innerHTML = addresses.map(renderAddressRow).join("");
+
+      addresses.forEach((address) => {
+        document.getElementById(`edit-${address.id}`).addEventListener("click", () => editAddress(address));
+        document.getElementById(`delete-${address.id}`).addEventListener("click", () => deleteAddress(address.id));
+      });
+    }
+
+    function renderAddressRow(address) {
+      return `
+        <div class="list-row">
+          <div class="list-row-main">
+            <div class="list-row-title">${escapeHtml(address.street)}${address.is_default ? ' <span class="badge badge-success">Default</span>' : ""}</div>
+            <div class="list-row-meta">${escapeHtml(address.city)}, ${escapeHtml(address.country)}${address.phone ? ` · ${escapeHtml(address.phone)}` : ""}</div>
+          </div>
+          <div class="list-row-actions">
+            <button type="button" class="link-btn" id="edit-${address.id}">Edit</button>
+            <button type="button" class="cart-item-remove" id="delete-${address.id}">Delete</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function showForm() {
+      form.classList.remove("hidden");
+    }
+
+    function hideForm() {
+      form.classList.add("hidden");
+      form.reset();
+      document.getElementById("address-id").value = "";
+      clearFormErrors(form);
+    }
+
+    document.getElementById("toggle-new-address").addEventListener("click", () => {
+      hideForm();
+      showForm();
+    });
+
+    document.getElementById("cancel-address-btn").addEventListener("click", hideForm);
+
+    function editAddress(address) {
+      document.getElementById("address-id").value = address.id;
+      form.city.value = address.city;
+      form.country.value = address.country;
+      form.street.value = address.street;
+      form.postal_code.value = address.postal_code || "";
+      form.phone.value = address.phone || "";
+      form.is_default.checked = address.is_default;
+      showForm();
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      clearFormErrors(form);
+      const submitBtn = document.getElementById("save-address-btn");
+      setButtonLoading(submitBtn, true, "Saving...");
+
+      const id = document.getElementById("address-id").value;
+      const payload = {
+        city: form.city.value,
+        country: form.country.value,
+        street: form.street.value,
+        postal_code: form.postal_code.value || null,
+        phone: form.phone.value || null,
+        is_default: form.is_default.checked,
+      };
+
+      try {
+        if (id) {
+          await apiRequest(`/addresses/${id}`, { method: "PUT", body: payload });
+        } else {
+          await apiRequest("/addresses", { method: "POST", body: payload });
+        }
+        hideForm();
+        loadAddresses();
+      } catch (error) {
+        displayFormErrors(form, error);
+      } finally {
+        setButtonLoading(submitBtn, false);
+      }
+    });
+
+    async function deleteAddress(id) {
+      if (!(await showConfirm("Delete this address?"))) return;
+      try {
+        await apiRequest(`/addresses/${id}`, { method: "DELETE" });
+        loadAddresses();
+      } catch (error) {
+        showToast(error.message || "Could not delete this address.", "danger");
+      }
+    }
+
+    loadAddresses();
+  </script>
+</body>
+</html>

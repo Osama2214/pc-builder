@@ -1,0 +1,104 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>My Builds — PC Builder</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <div class="page">
+    <div class="container">
+      <div class="page-header">
+        <h1>My Builds</h1>
+        <button type="button" class="btn btn-auto" id="new-build-btn">+ Start a new build</button>
+      </div>
+
+      <div id="state" class="state-message">Loading your builds...</div>
+      <div id="builds-list"></div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/format.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/cart-drawer.js"></script>
+  <script src="js/custom-select.js"></script>
+  <script src="js/toast.js"></script>
+  <script src="js/confirm-dialog.js"></script>
+  <script>
+    Auth.requireAuth();
+
+    const stateEl = document.getElementById("state");
+    const listEl = document.getElementById("builds-list");
+
+    async function loadBuilds() {
+      try {
+        const result = await apiRequest("/builds");
+        render(result.data);
+      } catch (error) {
+        stateEl.textContent = error.message || "Could not load your builds.";
+      }
+    }
+
+    function render(builds) {
+      if (builds.length === 0) {
+        stateEl.textContent = "You haven't started any builds yet.";
+        return;
+      }
+
+      stateEl.classList.add("hidden");
+      listEl.innerHTML = builds.map(renderBuildRow).join("");
+
+      builds.forEach((build) => {
+        document.getElementById(`delete-${build.id}`).addEventListener("click", () => deleteBuild(build.id, build.name));
+      });
+    }
+
+    function renderBuildRow(build) {
+      const itemCount = build.items.length;
+      return `
+        <div class="list-row">
+          <div class="list-row-main">
+            <div class="list-row-title">${escapeHtml(build.name || "Untitled build")}</div>
+            <div class="list-row-meta">
+              ${itemCount} part${itemCount === 1 ? "" : "s"} · ${formatPrice(build.total_price)} ·
+              <span class="status-badge status-${build.status}">${capitalizeText(build.status)}</span>
+              <span class="status-badge status-${build.compatibility_status}">${capitalizeText(build.compatibility_status)}</span>
+            </div>
+          </div>
+          <div class="list-row-actions">
+            <a href="build.html?id=${build.id}" class="btn btn-secondary btn-auto">Open</a>
+            <button type="button" class="cart-item-remove" id="delete-${build.id}">Delete</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function capitalizeText(value) {
+      return value ? value.charAt(0).toUpperCase() + value.slice(1) : "";
+    }
+
+    async function deleteBuild(id, name) {
+      if (!(await showConfirm(`Delete "${name || "this build"}"? This cannot be undone.`))) return;
+
+      try {
+        await apiRequest(`/builds/${id}`, { method: "DELETE" });
+        loadBuilds();
+      } catch (error) {
+        showToast(error.message || "Could not delete this build.", "danger");
+      }
+    }
+
+    document.getElementById("new-build-btn").addEventListener("click", () => {
+      window.location.href = "build.html";
+    });
+
+    loadBuilds();
+  </script>
+</body>
+</html>

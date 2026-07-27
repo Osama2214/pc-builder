@@ -1,0 +1,164 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Admin: Benchmark Targets — PC Builder</title>
+  <link rel="stylesheet" href="../css/main.css" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <div class="page">
+    <div class="container" style="max-width: 700px;">
+      <div class="page-header">
+        <h1>Benchmark Targets</h1>
+        <button type="button" class="link-btn" id="toggle-form">+ Add target</button>
+      </div>
+
+      <form id="item-form" class="section-card hidden" style="margin-top:0;" novalidate>
+        <div class="alert alert-danger hidden"></div>
+        <input type="hidden" id="item-id" />
+        <div class="field">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" required />
+          <div class="field-error" data-error-for="name"></div>
+        </div>
+        <div class="field">
+          <label for="type">Type</label>
+          <select id="type" name="type" required>
+            <option value="game">Game</option>
+            <option value="software">Software</option>
+          </select>
+          <div class="field-error" data-error-for="type"></div>
+        </div>
+        <div class="field">
+          <label for="image">Image URL (optional)</label>
+          <input type="text" id="image" name="image" />
+          <div class="field-error" data-error-for="image"></div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button type="submit" class="btn btn-auto" id="save-btn">Save</button>
+          <button type="button" class="btn btn-secondary btn-auto" id="cancel-btn">Cancel</button>
+        </div>
+      </form>
+
+      <div id="state" class="state-message">Loading...</div>
+      <div id="list"></div>
+    </div>
+  </div>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/format.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/cart-drawer.js"></script>
+  <script src="../js/custom-select.js"></script>
+  <script src="../js/toast.js"></script>
+  <script src="../js/confirm-dialog.js"></script>
+  <script src="../js/form-helpers.js"></script>
+  <script>
+    Auth.requireAdmin();
+
+    const stateEl = document.getElementById("state");
+    const listEl = document.getElementById("list");
+    const form = document.getElementById("item-form");
+
+    async function load() {
+      try {
+        const result = await apiRequest("/benchmark-targets", { auth: false });
+        render(result.data);
+      } catch (error) {
+        stateEl.textContent = error.message || "Could not load benchmark targets.";
+      }
+    }
+
+    function render(items) {
+      stateEl.classList.toggle("hidden", items.length > 0);
+      if (items.length === 0) stateEl.textContent = "No benchmark targets yet.";
+
+      listEl.innerHTML = items.map(
+        (item) => `
+          <div class="list-row">
+            <div class="list-row-main">
+              <div class="list-row-title">${escapeHtml(item.name)}</div>
+              <div class="list-row-meta">${escapeHtml(item.type)}</div>
+            </div>
+            <div class="list-row-actions">
+              <button type="button" class="link-btn" id="edit-${item.id}">Edit</button>
+              <button type="button" class="cart-item-remove" id="delete-${item.id}">Delete</button>
+            </div>
+          </div>
+        `
+      ).join("");
+
+      items.forEach((item) => {
+        document.getElementById(`edit-${item.id}`).addEventListener("click", () => editItem(item));
+        document.getElementById(`delete-${item.id}`).addEventListener("click", () => deleteItem(item.id));
+      });
+    }
+
+    function showForm() {
+      form.classList.remove("hidden");
+    }
+
+    function hideForm() {
+      form.classList.add("hidden");
+      form.reset();
+      document.getElementById("item-id").value = "";
+      clearFormErrors(form);
+    }
+
+    document.getElementById("toggle-form").addEventListener("click", () => {
+      hideForm();
+      showForm();
+    });
+    document.getElementById("cancel-btn").addEventListener("click", hideForm);
+
+    function editItem(item) {
+      document.getElementById("item-id").value = item.id;
+      form.name.value = item.name;
+      form.type.value = item.type;
+      form.image.value = item.image || "";
+      showForm();
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      clearFormErrors(form);
+      const btn = document.getElementById("save-btn");
+      setButtonLoading(btn, true, "Saving...");
+
+      const id = document.getElementById("item-id").value;
+      const payload = { name: form.name.value, type: form.type.value, image: form.image.value || null };
+
+      try {
+        if (id) {
+          await apiRequest(`/benchmark-targets/${id}`, { method: "PUT", body: payload });
+        } else {
+          await apiRequest("/benchmark-targets", { method: "POST", body: payload });
+        }
+        hideForm();
+        load();
+      } catch (error) {
+        displayFormErrors(form, error);
+      } finally {
+        setButtonLoading(btn, false);
+      }
+    });
+
+    async function deleteItem(id) {
+      if (!(await showConfirm("Delete this benchmark target?"))) return;
+      try {
+        await apiRequest(`/benchmark-targets/${id}`, { method: "DELETE" });
+        load();
+      } catch (error) {
+        showToast(error.message || "Could not delete this benchmark target.", "danger");
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>

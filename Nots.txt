@@ -1,0 +1,13 @@
+١. الباك إند (Laravel API) — من جوه مجلد backend:
+cd backend
+php artisan serve --port=8000
+٢. الفرونت إند (الموقع نفسه) — من جذر المشروع (pc-builder):
+
+php -S localhost:5501 -t frontend
+٣. افتح المتصفح على:
+
+http://localhost:5501
+
+
+admin@example.com
+password123

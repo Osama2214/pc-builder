@@ -1,0 +1,141 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Cart — PC Builder</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <div class="page">
+    <div class="container">
+      <div class="page-header">
+        <h1>Your Cart</h1>
+      </div>
+
+      <div id="cart-state" class="state-message">Loading cart...</div>
+
+      <div id="cart-layout" class="checkout-layout hidden">
+        <div class="section-card" style="margin-top:0;">
+          <div id="cart-items"></div>
+        </div>
+
+        <div class="section-card" style="margin-top:0;">
+          <h3>Summary</h3>
+          <div class="summary-row total">
+            <span>Total</span>
+            <span id="cart-total"></span>
+          </div>
+          <div class="field-error" id="cart-error" style="margin-bottom: 10px;"></div>
+          <a href="checkout.html" class="btn" id="checkout-btn">Proceed to Checkout</a>
+        </div>
+      </div>
+
+      <div id="empty-state" class="state-message hidden">
+        Your cart is empty. <a href="products.html">Browse products</a> to get started.
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/format.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/cart-drawer.js"></script>
+  <script src="js/custom-select.js"></script>
+  <script src="js/toast.js"></script>
+  <script>
+    Auth.requireAuth();
+
+    const stateEl = document.getElementById("cart-state");
+    const layoutEl = document.getElementById("cart-layout");
+    const emptyEl = document.getElementById("empty-state");
+    const itemsEl = document.getElementById("cart-items");
+    const totalEl = document.getElementById("cart-total");
+    const errorEl = document.getElementById("cart-error");
+
+    async function loadCart() {
+      errorEl.textContent = "";
+      try {
+        const result = await apiRequest("/cart");
+        renderCart(result.data);
+      } catch (error) {
+        stateEl.textContent = error.message || "Could not load your cart.";
+      }
+    }
+
+    function renderCart(cart) {
+      stateEl.classList.add("hidden");
+
+      if (!cart.items || cart.items.length === 0) {
+        layoutEl.classList.add("hidden");
+        emptyEl.classList.remove("hidden");
+        return;
+      }
+
+      emptyEl.classList.add("hidden");
+      layoutEl.classList.remove("hidden");
+
+      itemsEl.innerHTML = cart.items.map(renderCartItem).join("");
+      totalEl.textContent = formatPrice(cart.total);
+
+      cart.items.forEach((item) => {
+        document.getElementById(`inc-${item.id}`).addEventListener("click", () => changeQuantity(item, item.quantity + 1));
+        document.getElementById(`dec-${item.id}`).addEventListener("click", () => changeQuantity(item, item.quantity - 1));
+        document.getElementById(`remove-${item.id}`).addEventListener("click", () => removeItem(item.id));
+      });
+    }
+
+    function renderCartItem(item) {
+      const imageUrl = getProductImageUrl(item.product);
+      const thumb = imageUrl
+        ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.product.name)}" />`
+        : "No image";
+
+      return `
+        <div class="cart-item">
+          <div class="cart-item-thumb">${thumb}</div>
+          <div class="cart-item-info">
+            <div class="cart-item-name">${escapeHtml(item.product.name)}</div>
+            <div class="cart-item-price">${formatPrice(item.unit_price)} each</div>
+          </div>
+          <div class="qty-stepper">
+            <button type="button" id="dec-${item.id}" ${item.quantity <= 1 ? "disabled" : ""}>−</button>
+            <span>${item.quantity}</span>
+            <button type="button" id="inc-${item.id}" ${item.quantity >= item.product.stock ? "disabled" : ""}>+</button>
+          </div>
+          <div style="width: 90px; text-align: right; font-weight: 600;">${formatPrice(item.line_total)}</div>
+          <button type="button" class="cart-item-remove" id="remove-${item.id}">Remove</button>
+        </div>
+      `;
+    }
+
+    async function changeQuantity(item, newQuantity) {
+      errorEl.textContent = "";
+      try {
+        await apiRequest(`/cart/items/${item.id}`, { method: "PATCH", body: { quantity: newQuantity } });
+        loadCart();
+        refreshCartBadge();
+      } catch (error) {
+        errorEl.textContent = error.message || "Could not update quantity.";
+      }
+    }
+
+    async function removeItem(itemId) {
+      errorEl.textContent = "";
+      try {
+        await apiRequest(`/cart/items/${itemId}`, { method: "DELETE" });
+        loadCart();
+        refreshCartBadge();
+      } catch (error) {
+        errorEl.textContent = error.message || "Could not remove item.";
+      }
+    }
+
+    loadCart();
+  </script>
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>PC Builder</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <section class="hero" id="hero">
+    <div class="container hero-inner hidden" id="hero-text">
+      <h1 id="hero-heading">Build Your Dream PC</h1>
+      <p id="hero-subtext">Browse parts, build a compatible PC, and check out with confidence.</p>
+      <div class="hero-actions">
+        <a href="products.html" class="btn btn-auto">Shop Now</a>
+        <a href="build.html" class="btn btn-secondary btn-auto">Build a PC</a>
+      </div>
+    </div>
+
+    <div class="hero-carousel hidden" id="hero-carousel">
+      <div class="hero-carousel-track" id="hero-carousel-track"></div>
+      <button type="button" class="hero-carousel-nav hero-carousel-prev hidden" id="hero-prev" aria-label="Previous slide">‹</button>
+      <button type="button" class="hero-carousel-nav hero-carousel-next hidden" id="hero-next" aria-label="Next slide">›</button>
+      <div class="hero-carousel-dots" id="hero-dots"></div>
+    </div>
+  </section>
+
+  <div class="page" style="padding-top: 40px;">
+    <div class="container">
+      <div class="home-section hidden" id="home-deals-section">
+        <div class="page-header">
+          <h2>Deals &amp; Offers</h2>
+          <a href="products.html">View all</a>
+        </div>
+        <div id="home-deals" class="product-grid"></div>
+      </div>
+
+      <div class="home-section hidden" id="home-latest-section">
+        <div class="page-header">
+          <h2>Latest Products</h2>
+          <a href="products.html">View all</a>
+        </div>
+        <div id="home-latest" class="product-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/format.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/cart-drawer.js"></script>
+  <script src="js/custom-select.js"></script>
+  <script src="js/toast.js"></script>
+  <script src="js/product-card.js"></script>
+  <script>
+    const user = Auth.getUser();
+    if (Auth.isLoggedIn() && user) {
+      document.getElementById("hero-heading").textContent = `Welcome back, ${user.name}`;
+    }
+
+    async function loadHomeProducts() {
+      try {
+        const result = await apiRequest("/products", { auth: false });
+        const products = result.data;
+
+        const deals = products.filter((p) => p.sale_price && Number(p.sale_price) < Number(p.price)).slice(0, 8);
+        if (deals.length > 0) {
+          document.getElementById("home-deals").innerHTML = deals.map(renderProductCard).join("");
+          document.getElementById("home-deals-section").classList.remove("hidden");
+        }
+
+        const latest = products.slice(0, 8);
+        if (latest.length > 0) {
+          document.getElementById("home-latest").innerHTML = latest.map(renderProductCard).join("");
+          document.getElementById("home-latest-section").classList.remove("hidden");
+        }
+      } catch (error) {
+        // Homepage sections are a nice-to-have; nav/hero still work without them.
+      }
+    }
+
+    let heroSlides = [];
+    let heroIndex = 0;
+
+    async function loadHeroBanners() {
+      try {
+        const result = await apiRequest("/banners", { auth: false });
+        heroSlides = result.data;
+      } catch (error) {
+        heroSlides = [];
+      }
+
+      if (heroSlides.length === 0) {
+        document.getElementById("hero-text").classList.remove("hidden");
+        return;
+      }
+
+      document.getElementById("hero").classList.add("hero-has-carousel");
+      const carousel = document.getElementById("hero-carousel");
+      carousel.classList.remove("hidden");
+
+      const track = document.getElementById("hero-carousel-track");
+      track.innerHTML = heroSlides
+        .map((slide) => {
+          const img = `<img src="${escapeHtml(slide.image_url)}" alt="" />`;
+          return `<div class="hero-carousel-slide">${slide.link_url ? `<a href="${escapeHtml(slide.link_url)}">${img}</a>` : img}</div>`;
+        })
+        .join("");
+
+      if (heroSlides.length > 1) {
+        document.getElementById("hero-prev").classList.remove("hidden");
+        document.getElementById("hero-next").classList.remove("hidden");
+
+        const dotsEl = document.getElementById("hero-dots");
+        dotsEl.innerHTML = heroSlides
+          .map((_, i) => `<button type="button" class="hero-carousel-dot" data-index="${i}"></button>`)
+          .join("");
+        dotsEl.querySelectorAll(".hero-carousel-dot").forEach((dot) => {
+          dot.addEventListener("click", () => showHeroSlide(Number(dot.dataset.index)));
+        });
+
+        setInterval(() => showHeroSlide(heroIndex + 1), 5000);
+      }
+
+      showHeroSlide(0);
+    }
+
+    function showHeroSlide(index) {
+      if (heroSlides.length === 0) return;
+      heroIndex = (index + heroSlides.length) % heroSlides.length;
+      document.getElementById("hero-carousel-track").style.transform = `translateX(-${heroIndex * 100}%)`;
+      document
+        .querySelectorAll(".hero-carousel-dot")
+        .forEach((dot, i) => dot.classList.toggle("active", i === heroIndex));
+    }
+
+    document.getElementById("hero-prev").addEventListener("click", () => showHeroSlide(heroIndex - 1));
+    document.getElementById("hero-next").addEventListener("click", () => showHeroSlide(heroIndex + 1));
+
+    loadHeroBanners();
+    loadHomeProducts();
+  </script>
+</body>
+</html>

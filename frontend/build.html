@@ -1,0 +1,516 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Build a PC — PC Builder</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <div class="page">
+    <div class="container">
+      <div id="build-state" class="state-message">Loading your build...</div>
+
+      <div id="build-layout" class="build-layout hidden">
+        <div>
+          <input type="text" id="build-name" class="build-name-input" placeholder="Untitled build" />
+          <div id="slots-container"></div>
+        </div>
+
+        <div class="summary-panel">
+          <h3>Summary</h3>
+          <div class="summary-stat"><span>Total price</span><span id="summary-price"></span></div>
+          <div class="summary-stat"><span>Estimated power</span><span id="summary-power"></span></div>
+          <div class="summary-stat"><span>Compatibility</span><span id="summary-compat" class="status-badge"></span></div>
+          <div class="summary-stat"><span>Status</span><span id="summary-status" class="status-badge"></span></div>
+
+          <div class="field-error" id="build-error" style="margin-top: 10px;"></div>
+
+          <button type="button" class="btn" id="checkout-build-btn" style="margin-top: 14px;">Buy this build</button>
+
+          <div class="share-row">
+            <input type="checkbox" id="share-toggle" />
+            <label for="share-toggle" style="margin:0;">Make this build public / shareable</label>
+          </div>
+          <div class="share-link-box hidden" id="share-link-box">
+            <input type="text" id="share-link-input" readonly />
+            <button type="button" class="btn btn-secondary btn-auto" id="copy-link-btn">Copy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="picker-title" style="margin:0;">Choose a part</h3>
+        <button type="button" class="modal-close" id="picker-close">&times;</button>
+      </div>
+      <div class="modal-filters">
+        <input type="search" id="picker-search" placeholder="Search products..." style="flex:1;" />
+        <select id="picker-category">
+          <option value="">All categories</option>
+        </select>
+      </div>
+      <div class="modal-body">
+        <div class="field-error" id="picker-error" style="margin-bottom: 10px;"></div>
+        <div class="picker-compat-note hidden" id="picker-compat-note"></div>
+        <div id="picker-grid" class="picker-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/format.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/cart-drawer.js"></script>
+  <script src="js/custom-select.js"></script>
+  <script src="js/toast.js"></script>
+  <script src="js/build-slots.js"></script>
+  <script>
+    Auth.requireAuth();
+
+    let currentBuild = null;
+    let pickerSlot = null;
+    let pickerDebounce;
+
+    // No id in the URL yet doesn't create a build in the database — just a local
+    // placeholder with the same shape a real BuildResource has. A row only actually
+    // gets created the moment the user adds their first part (see selectProduct()),
+    // so simply visiting/leaving this page never leaves behind an empty draft.
+    function emptyLocalBuild() {
+      return {
+        id: null,
+        name: null,
+        items: [],
+        total_price: 0,
+        estimated_power: 0,
+        compatibility_status: "incomplete",
+        status: "draft",
+        is_public: false,
+        share_token: null,
+      };
+    }
+
+    async function init() {
+      const params = new URLSearchParams(window.location.search);
+      const buildId = params.get("id");
+
+      // Independent of the build itself — fetch it in parallel rather than after.
+      loadCategories();
+
+      if (!buildId) {
+        currentBuild = emptyLocalBuild();
+        render();
+        return;
+      }
+
+      try {
+        await loadBuild(buildId);
+      } catch (error) {
+        document.getElementById("build-state").textContent = error.message || "Could not load your build.";
+      }
+    }
+
+    async function loadCategories() {
+      try {
+        const result = await apiRequest("/categories", { auth: false });
+        const select = document.getElementById("picker-category");
+        result.data.forEach((category) => {
+          const option = document.createElement("option");
+          option.value = category.id;
+          option.textContent = category.name;
+          select.appendChild(option);
+        });
+      } catch (error) {
+        // Category filter is a nice-to-have; the picker still works without it.
+      }
+    }
+
+    async function loadBuild(id) {
+      const result = await apiRequest(`/builds/${id}`);
+      currentBuild = result.data;
+      render();
+    }
+
+    function render() {
+      document.getElementById("build-state").classList.add("hidden");
+      document.getElementById("build-layout").classList.remove("hidden");
+      document.getElementById("build-name").value = currentBuild.name || "";
+      renderSlots();
+      renderSummary();
+    }
+
+    function renderSlots() {
+      const container = document.getElementById("slots-container");
+      container.innerHTML = BUILD_SLOTS.map(renderSlotCard).join("");
+
+      BUILD_SLOTS.forEach((slot) => {
+        const addBtn = document.getElementById(`add-${slot.key}`);
+        if (addBtn) addBtn.addEventListener("click", () => openPicker(slot));
+      });
+
+      currentBuild.items.forEach((item) => {
+        const removeBtn = document.getElementById(`remove-item-${item.id}`);
+        if (removeBtn) removeBtn.addEventListener("click", () => removeItem(item.id));
+
+        const incBtn = document.getElementById(`inc-item-${item.id}`);
+        const decBtn = document.getElementById(`dec-item-${item.id}`);
+        if (incBtn) incBtn.addEventListener("click", () => changeItemQuantity(item, item.quantity + 1));
+        if (decBtn) decBtn.addEventListener("click", () => changeItemQuantity(item, item.quantity - 1));
+      });
+    }
+
+    function renderSlotCard(slot) {
+      const items = currentBuild.items.filter((i) => i.slot === slot.key);
+      const header = `
+        <div class="slot-card-header">
+          <span class="slot-label">${slot.label}${slot.required ? '<span class="slot-required">*</span>' : ""}</span>
+        </div>
+      `;
+
+      if (items.length === 0) {
+        return `
+          <div class="slot-card">
+            ${header}
+            <div class="slot-empty">
+              <span>No ${slot.label.toLowerCase()} selected</span>
+              <button type="button" class="btn btn-secondary btn-auto" id="add-${slot.key}">+ Choose</button>
+            </div>
+          </div>
+        `;
+      }
+
+      const rows = items
+        .map((item) => {
+          const itemImageUrl = getProductImageUrl(item.product);
+          const thumb = itemImageUrl ? `<img src="${escapeHtml(itemImageUrl)}" alt="" />` : "No image";
+          const price = item.product.sale_price ?? item.product.price;
+
+          const stepper = slot.multi
+            ? `<div class="qty-stepper">
+                 <button type="button" id="dec-item-${item.id}" ${item.quantity <= 1 ? "disabled" : ""}>−</button>
+                 <span>${item.quantity}</span>
+                 <button type="button" id="inc-item-${item.id}" ${item.quantity >= item.product.stock ? "disabled" : ""}>+</button>
+               </div>`
+            : "";
+
+          return `
+            <div class="slot-item-row">
+              <div class="slot-item-thumb">${thumb}</div>
+              <div class="slot-item-info">
+                <div class="slot-item-name">${escapeHtml(item.product.name)}</div>
+                <div class="slot-item-price">${formatPrice(price)}</div>
+              </div>
+              ${stepper}
+              <button type="button" class="cart-item-remove" id="remove-item-${item.id}">Remove</button>
+            </div>
+          `;
+        })
+        .join("");
+
+      const addMoreLabel = slot.multi ? "+ Add another" : "Change";
+
+      return `
+        <div class="slot-card">
+          ${header}
+          ${rows}
+          <button type="button" class="link-btn" style="margin-top:10px;" id="add-${slot.key}">${addMoreLabel}</button>
+        </div>
+      `;
+    }
+
+    function renderSummary() {
+      document.getElementById("summary-price").textContent = formatPrice(currentBuild.total_price);
+      document.getElementById("summary-power").textContent = `${currentBuild.estimated_power ?? 0} W`;
+
+      const compatEl = document.getElementById("summary-compat");
+      compatEl.textContent = capitalize(currentBuild.compatibility_status);
+      compatEl.className = `status-badge status-${currentBuild.compatibility_status}`;
+
+      const statusEl = document.getElementById("summary-status");
+      statusEl.textContent = capitalize(currentBuild.status);
+      statusEl.className = `status-badge status-${currentBuild.status}`;
+
+      const checkoutBtn = document.getElementById("checkout-build-btn");
+      if (currentBuild.status === "purchased") {
+        checkoutBtn.disabled = true;
+        checkoutBtn.textContent = "Already purchased";
+      } else if (currentBuild.status === "complete") {
+        checkoutBtn.disabled = false;
+        checkoutBtn.textContent = "Buy this build";
+      } else {
+        checkoutBtn.disabled = true;
+        checkoutBtn.textContent = "Add required parts to buy";
+      }
+
+      document.getElementById("share-toggle").checked = currentBuild.is_public;
+      const shareBox = document.getElementById("share-link-box");
+      if (currentBuild.is_public && currentBuild.share_token) {
+        shareBox.classList.remove("hidden");
+        document.getElementById("share-link-input").value =
+          `${window.location.origin}/build-view.html?token=${currentBuild.share_token}`;
+      } else {
+        shareBox.classList.add("hidden");
+      }
+    }
+
+    function showBuildError(message) {
+      document.getElementById("build-error").textContent = message || "Something went wrong.";
+    }
+
+    // Build name (save on blur)
+    document.getElementById("build-name").addEventListener("blur", async (event) => {
+      const name = event.target.value.trim() || null;
+      if (name === currentBuild.name) return;
+      currentBuild.name = name;
+
+      // Nothing to save yet — the build doesn't exist in the database until the
+      // first part is added (see selectProduct()); the name will be sent then.
+      if (!currentBuild.id) return;
+
+      try {
+        await apiRequest(`/builds/${currentBuild.id}`, { method: "PATCH", body: { name } });
+      } catch (error) {
+        showBuildError(error.message);
+      }
+    });
+
+    // A slot maps to exactly one real product category, so the picker locks to it instead
+    // of offering an unrelated "All categories" dropdown (which is how a CPU could end up
+    // showing in the Motherboard picker — they share a "socket" spec field).
+    // Keyed by category ID rather than name — a name (or slug) can be edited from the
+    // Categories admin page, which would otherwise silently break this matching. IDs are
+    // specific to this database: 1 CPUs, 2 Graphics Cards, 3 Motherboards, 4 Memory,
+    // 5 Power Supplies, 6 Storage, 8 Laptops, 10 Cases, 11 Coolers.
+    const SLOT_CATEGORY_IDS = {
+      cpu: [1],
+      motherboard: [3],
+      ram: [4],
+      storage: [6],
+      psu: [5],
+      gpu: [2],
+      cooler: [11],
+      case: [10],
+    };
+
+    // Picker
+    function openPicker(slot) {
+      pickerSlot = slot;
+      document.getElementById("picker-title").textContent = `Choose ${slot.label}`;
+      document.getElementById("picker-search").value = "";
+      document.getElementById("picker-category").value = "";
+      const categoryField = document.getElementById("picker-category").closest(".cs-select") || document.getElementById("picker-category");
+      categoryField.classList.add("hidden");
+      document.getElementById("picker-error").textContent = "";
+      document.getElementById("modal-overlay").classList.remove("hidden");
+      loadPickerProducts();
+    }
+
+    document.getElementById("picker-close").addEventListener("click", closePicker);
+    document.getElementById("modal-overlay").addEventListener("click", (e) => {
+      if (e.target.id === "modal-overlay") closePicker();
+    });
+
+    function closePicker() {
+      document.getElementById("modal-overlay").classList.add("hidden");
+      pickerSlot = null;
+    }
+
+    function getSlotCategoryId(slotKey) {
+      const ids = SLOT_CATEGORY_IDS[slotKey] || [];
+      return ids[0] ?? null;
+    }
+
+    // Mirrors the pairwise checks in backend/app/Services/Compatibility/*Checker.php — the
+    // picker filters to what's actually compatible instead of showing every product and
+    // letting the user find out from the "Incompatible" badge afterwards.
+    function getCompatibilityFilter(slot) {
+      const firstInSlot = (key) => currentBuild.items.find((item) => item.slot === key)?.product;
+      const cpu = firstInSlot("cpu");
+      const motherboard = firstInSlot("motherboard");
+
+      if (slot.key === "motherboard" && cpu?.specification?.socket) {
+        const socket = cpu.specification.socket;
+        return {
+          note: `Showing motherboards compatible with your CPU (socket ${socket}).`,
+          predicate: (p) => p.specification?.socket?.toUpperCase() === socket.toUpperCase(),
+        };
+      }
+
+      if (slot.key === "cpu" && motherboard?.specification?.socket) {
+        const socket = motherboard.specification.socket;
+        return {
+          note: `Showing CPUs compatible with your motherboard (socket ${socket}).`,
+          predicate: (p) => p.specification?.socket?.toUpperCase() === socket.toUpperCase(),
+        };
+      }
+
+      if (slot.key === "ram" && motherboard?.specification?.ram_type) {
+        const ramType = motherboard.specification.ram_type;
+        return {
+          note: `Showing memory compatible with your motherboard (${ramType}).`,
+          predicate: (p) => p.specification?.ram_type?.toUpperCase() === ramType.toUpperCase(),
+        };
+      }
+
+      if (slot.key === "cooler" && cpu?.specification?.socket) {
+        const socket = cpu.specification.socket.toUpperCase();
+        return {
+          note: `Showing coolers compatible with your CPU (socket ${socket}).`,
+          predicate: (p) => {
+            const coolerSockets = p.specification?.socket;
+            if (!coolerSockets) return false;
+            return coolerSockets
+              .split(",")
+              .map((s) => s.trim().toUpperCase())
+              .includes(socket);
+          },
+        };
+      }
+
+      return null;
+    }
+
+    async function loadPickerProducts() {
+      const grid = document.getElementById("picker-grid");
+      const noteEl = document.getElementById("picker-compat-note");
+      grid.innerHTML = `<p class="state-message">Loading...</p>`;
+      noteEl.classList.add("hidden");
+
+      const params = new URLSearchParams();
+      const search = document.getElementById("picker-search").value.trim();
+      const slotCategoryId = getSlotCategoryId(pickerSlot.key);
+      if (search) params.set("search", search);
+      if (slotCategoryId) params.set("category_id", slotCategoryId);
+
+      try {
+        const result = await apiRequest(`/products?${params.toString()}`, { auth: false });
+        let items = result.data;
+
+        // Defense in depth: if this slot's category doesn't exist in the catalog yet
+        // (e.g. no "Cases" category), still make sure nothing from an unrelated
+        // category slips in just because it happens to share a spec field name.
+        const expectedIds = SLOT_CATEGORY_IDS[pickerSlot.key] || [];
+        if (expectedIds.length) {
+          items = items.filter((p) => expectedIds.includes(p.category?.id));
+        }
+
+        const compatFilter = getCompatibilityFilter(pickerSlot);
+        if (compatFilter) {
+          items = items.filter(compatFilter.predicate);
+          noteEl.textContent = compatFilter.note;
+          noteEl.classList.remove("hidden");
+        }
+
+        if (items.length === 0) {
+          grid.innerHTML = `<p class="state-message">${
+            compatFilter ? "No compatible options found for your current build." : "No products found."
+          }</p>`;
+          return;
+        }
+        grid.innerHTML = items.map(renderPickerCard).join("");
+        items.forEach((product) => {
+          const btn = document.getElementById(`pick-${product.id}`);
+          if (btn) btn.addEventListener("click", () => selectProduct(product));
+        });
+      } catch (error) {
+        grid.innerHTML = `<p class="state-message">${escapeHtml(error.message || "Could not load products.")}</p>`;
+      }
+    }
+
+    function renderPickerCard(product) {
+      const pickerImageUrl = getProductImageUrl(product);
+      const thumb = pickerImageUrl ? `<img src="${escapeHtml(pickerImageUrl)}" alt="" />` : "No image";
+      const price = product.sale_price ?? product.price;
+      return `
+        <button type="button" class="picker-card" id="pick-${product.id}" ${!product.in_stock ? "disabled" : ""}>
+          <div class="picker-card-thumb">${thumb}</div>
+          <div class="picker-card-name">${escapeHtml(product.name)}</div>
+          <div class="picker-card-price">${formatPrice(price)}</div>
+          ${!product.in_stock ? '<div class="badge badge-danger" style="margin-top:4px;">Out of stock</div>' : ""}
+        </button>
+      `;
+    }
+
+    document.getElementById("picker-search").addEventListener("input", () => {
+      clearTimeout(pickerDebounce);
+      pickerDebounce = setTimeout(loadPickerProducts, 400);
+    });
+    document.getElementById("picker-category").addEventListener("change", loadPickerProducts);
+
+    async function selectProduct(product) {
+      try {
+        if (!currentBuild.id) {
+          const created = await apiRequest("/builds", { method: "POST", body: { name: currentBuild.name } });
+          currentBuild = created.data;
+          window.history.replaceState({}, "", `build.html?id=${currentBuild.id}`);
+        }
+
+        await apiRequest(`/builds/${currentBuild.id}/items`, {
+          method: "POST",
+          body: { product_id: product.id, slot: pickerSlot.key, quantity: 1 },
+        });
+        closePicker();
+        await loadBuild(currentBuild.id);
+      } catch (error) {
+        document.getElementById("picker-error").textContent = error.message || "Could not add this product.";
+      }
+    }
+
+    async function changeItemQuantity(item, quantity) {
+      try {
+        await apiRequest(`/builds/${currentBuild.id}/items/${item.id}`, { method: "PATCH", body: { quantity } });
+        await loadBuild(currentBuild.id);
+      } catch (error) {
+        showBuildError(error.message);
+      }
+    }
+
+    async function removeItem(itemId) {
+      try {
+        await apiRequest(`/builds/${currentBuild.id}/items/${itemId}`, { method: "DELETE" });
+        await loadBuild(currentBuild.id);
+      } catch (error) {
+        showBuildError(error.message);
+      }
+    }
+
+    document.getElementById("share-toggle").addEventListener("change", async (event) => {
+      if (!currentBuild.id) {
+        event.target.checked = false;
+        showToast("Add at least one part before sharing this build.", "info");
+        return;
+      }
+
+      try {
+        await apiRequest(`/builds/${currentBuild.id}/share`, {
+          method: "POST",
+          body: { is_public: event.target.checked },
+        });
+        await loadBuild(currentBuild.id);
+      } catch (error) {
+        event.target.checked = !event.target.checked;
+        showBuildError(error.message);
+      }
+    });
+
+    document.getElementById("copy-link-btn").addEventListener("click", () => {
+      const input = document.getElementById("share-link-input");
+      input.select();
+      navigator.clipboard?.writeText(input.value);
+    });
+
+    document.getElementById("checkout-build-btn").addEventListener("click", () => {
+      window.location.href = `build-checkout.html?id=${currentBuild.id}`;
+    });
+
+    init();
+  </script>
+</body>
+</html>

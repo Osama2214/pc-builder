@@ -1,0 +1,142 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Admin: Orders — PC Builder</title>
+  <link rel="stylesheet" href="../css/main.css" />
+</head>
+<body>
+  <div id="navbar-placeholder"></div>
+
+  <div class="page">
+    <div class="container">
+      <div class="page-header">
+        <h1>All Orders</h1>
+      </div>
+
+      <div class="filters-bar">
+        <input type="search" id="search-input" placeholder="Search by order # or customer..." />
+        <select id="status-filter">
+          <option value="">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="processing">Processing</option>
+          <option value="shipped">Shipped</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <select id="payment-status-filter">
+          <option value="">All payment statuses</option>
+          <option value="pending">Pending</option>
+          <option value="paid">Paid</option>
+          <option value="failed">Failed</option>
+          <option value="refunded">Refunded</option>
+        </select>
+        <button type="button" class="link-btn" id="clear-filters">Clear filters</button>
+      </div>
+
+      <div id="state" class="state-message">Loading orders...</div>
+      <div id="list"></div>
+      <div id="pagination" class="pagination hidden"></div>
+    </div>
+  </div>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/format.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/cart-drawer.js"></script>
+  <script src="../js/custom-select.js"></script>
+  <script src="../js/toast.js"></script>
+  <script>
+    Auth.requireAdmin();
+
+    const stateEl = document.getElementById("state");
+    const listEl = document.getElementById("list");
+    const paginationEl = document.getElementById("pagination");
+    const searchInput = document.getElementById("search-input");
+    const statusFilter = document.getElementById("status-filter");
+    const paymentStatusFilter = document.getElementById("payment-status-filter");
+    let searchDebounce;
+
+    async function load(page = 1) {
+      stateEl.classList.remove("hidden");
+      stateEl.textContent = "Loading orders...";
+
+      const params = new URLSearchParams({ page: String(page) });
+      if (searchInput.value.trim()) params.set("search", searchInput.value.trim());
+      if (statusFilter.value) params.set("status", statusFilter.value);
+      if (paymentStatusFilter.value) params.set("payment_status", paymentStatusFilter.value);
+
+      try {
+        const result = await apiRequest(`/admin/orders?${params.toString()}`);
+
+        if (result.data.length === 0) {
+          listEl.innerHTML = "";
+          paginationEl.classList.add("hidden");
+          stateEl.classList.remove("hidden");
+          stateEl.textContent = "No orders found.";
+          return;
+        }
+
+        stateEl.classList.add("hidden");
+        listEl.innerHTML = result.data.map(renderRow).join("");
+        renderPagination(result.meta, page);
+      } catch (error) {
+        stateEl.classList.remove("hidden");
+        stateEl.textContent = error.message || "Could not load orders.";
+      }
+    }
+
+    function renderRow(order) {
+      const date = new Date(order.created_at).toLocaleDateString();
+      return `
+        <a href="/order.html?id=${order.id}" class="list-row" style="text-decoration:none; color:inherit;">
+          <div class="list-row-main">
+            <div class="list-row-title">${escapeHtml(order.order_number)}</div>
+            <div class="list-row-meta">${order.user ? escapeHtml(order.user.name) : "Unknown customer"} · ${date} · ${order.items.length} item${order.items.length === 1 ? "" : "s"}</div>
+          </div>
+          <div class="list-row-actions">
+            <span class="status-badge status-${order.status}">${order.status}</span>
+            <strong>${formatPrice(order.total_price)}</strong>
+          </div>
+        </a>
+      `;
+    }
+
+    function renderPagination(meta, currentPage) {
+      if (!meta || meta.last_page <= 1) {
+        paginationEl.classList.add("hidden");
+        return;
+      }
+      paginationEl.classList.remove("hidden");
+      paginationEl.innerHTML = `
+        <button type="button" id="prev-page" ${currentPage <= 1 ? "disabled" : ""}>Prev</button>
+        <span class="pagination-info">Page ${meta.current_page} of ${meta.last_page}</span>
+        <button type="button" id="next-page" ${currentPage >= meta.last_page ? "disabled" : ""}>Next</button>
+      `;
+      document.getElementById("prev-page").addEventListener("click", () => load(currentPage - 1));
+      document.getElementById("next-page").addEventListener("click", () => load(currentPage + 1));
+    }
+
+    searchInput.addEventListener("input", () => {
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(() => load(1), 400);
+    });
+
+    [statusFilter, paymentStatusFilter].forEach((select) => {
+      select.addEventListener("change", () => load(1));
+    });
+
+    document.getElementById("clear-filters").addEventListener("click", () => {
+      searchInput.value = "";
+      statusFilter.value = "";
+      paymentStatusFilter.value = "";
+      load(1);
+    });
+
+    load(1);
+  </script>
+</body>
+</html>
