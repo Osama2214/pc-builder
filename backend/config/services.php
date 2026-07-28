@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'openrouter' => [
+        'key' => env('OPENROUTER_API_KEY'),
+        // openai/gpt-oss-20b:free passed isolated tests but produced empty responses
+        // once the real (large) catalog system prompt was involved — this 120B model
+        // held up correctly under the same real-world load.
+        'model' => env('OPENROUTER_MODEL', 'nvidia/nemotron-3-super-120b-a12b:free'),
+    ],
+
 ];

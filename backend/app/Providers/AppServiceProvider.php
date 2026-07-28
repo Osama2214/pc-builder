@@ -32,5 +32,11 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('register', function (Request $request) {
             return Limit::perMinute(5)->by($request->ip());
         });
+
+        // Each chat turn can make up to two Gemini calls (the tool-call round trip),
+        // so this stays modest to avoid burning through the API quota from one client.
+        RateLimiter::for('ai-chat', function (Request $request) {
+            return Limit::perMinute(15)->by($request->user()?->id ?: $request->ip());
+        });
     }
 }

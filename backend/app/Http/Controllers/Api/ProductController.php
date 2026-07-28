@@ -54,7 +54,9 @@ class ProductController extends Controller
             };
         }
 
-        return ProductResource::collection($query->latest()->paginate(20));
+        $perPage = $request->filled('per_page') ? min($request->integer('per_page'), 500) : 20;
+
+        return ProductResource::collection($query->latest()->paginate($perPage));
     }
 
     public function show(Request $request, Product $product): ProductResource

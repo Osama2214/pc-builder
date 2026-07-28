@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AdminDashboardController;
+use App\Http\Controllers\Api\AiChatController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BannerController;
 use App\Http\Controllers\Api\BenchmarkController;
@@ -72,6 +73,10 @@ Route::get('/compare/products', [CompareController::class, 'products']);
 Route::get('/compare/builds', [CompareController::class, 'builds']);
 
 Route::get('/banners', [BannerController::class, 'index']);
+
+// Public so guests can ask questions too; add_to_cart/create_build tool calls
+// check for a logged-in user inside AiChatService itself.
+Route::post('/ai/chat', [AiChatController::class, 'chat'])->middleware('throttle:ai-chat');
 
 // Admin-only writes (business rule 8: CRUD on Products/Categories/Brands is admin-only,
 // plus review approval and order fulfillment).

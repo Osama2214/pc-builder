@@ -102,22 +102,30 @@ async function loadCandidatePool() {
   const params = new URLSearchParams();
   if (activeSearch) params.set("search", activeSearch);
   if (activeCategoryId) params.set("category_id", activeCategoryId);
+  // This page fetches once and does all filtering/pagination client-side for instant
+  // faceted search — it needs the whole matching set, not just the API's default page.
+  params.set("per_page", "500");
 
   try {
     const result = await apiRequest(`/products?${params.toString()}`, { auth: false });
     candidatePool = result.data;
 
+    // Spec facets (Socket, Wattage, Screen Size...) only make sense within one category —
+    // unioning them across every category at once was turning the sidebar into 40+ sections.
+    // Only build them once the candidate pool is already scoped to a single category.
     const fieldSet = new Set();
-    candidatePool.forEach((p) => {
-      if (!p.specification) return;
-      Object.entries(p.specification).forEach(([field, value]) => {
-        // custom_specifications is an array of admin-defined {key, value} pairs, not a
-        // single filterable value like every other column here — it can't be faceted the
-        // same way, so it's excluded rather than showing up as a broken "field".
-        if (field === "custom_specifications") return;
-        if (value !== null && value !== undefined && value !== "") fieldSet.add(field);
+    if (activeCategoryId) {
+      candidatePool.forEach((p) => {
+        if (!p.specification) return;
+        Object.entries(p.specification).forEach(([field, value]) => {
+          // custom_specifications is an array of admin-defined {key, value} pairs, not a
+          // single filterable value like every other column here — it can't be faceted the
+          // same way, so it's excluded rather than showing up as a broken "field".
+          if (field === "custom_specifications") return;
+          if (value !== null && value !== undefined && value !== "") fieldSet.add(field);
+        });
       });
-    });
+    }
     specFieldNames = Array.from(fieldSet).sort((a, b) => humanizeSpecField(a).localeCompare(humanizeSpecField(b)));
 
     buildSidebar();
