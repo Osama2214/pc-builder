@@ -73,8 +73,7 @@
     function renderWishlistCard(item) {
       const product = item.product;
       const price = product.sale_price ?? product.price;
-      const imageUrl = getProductImageUrl(product);
-      const thumb = imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" />` : "No image";
+      const thumb = getProductThumbHtml(product);
 
       return `
         <div class="product-card">

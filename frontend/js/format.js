@@ -35,3 +35,25 @@ function getProductImageUrl(product) {
   }
   return product.thumbnail || null;
 }
+
+// A single tasteful "no photo yet" placeholder — used everywhere a product thumbnail
+// would otherwise just be the bare words "No image" against an empty background.
+const PRODUCT_IMAGE_PLACEHOLDER_HTML = `
+  <div class="product-image-placeholder">
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+      <circle cx="8.5" cy="8.5" r="1.5"></circle>
+      <path d="M21 15l-5-5L5 21"></path>
+    </svg>
+    <span>No image yet</span>
+  </div>
+`;
+
+// Returns ready-to-insert HTML: either the real <img>, or the shared placeholder —
+// so every page shows the same polished placeholder instead of each rolling its own.
+function getProductThumbHtml(product, extraAttrs = "") {
+  const imageUrl = getProductImageUrl(product);
+  return imageUrl
+    ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product?.name ?? "")}" ${extraAttrs} />`
+    : PRODUCT_IMAGE_PLACEHOLDER_HTML;
+}

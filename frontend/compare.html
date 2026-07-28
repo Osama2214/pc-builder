@@ -135,8 +135,7 @@
       try {
         const result = await apiRequest(`/products/${selectedIds[0]}`, { auth: false });
         const product = result.data;
-        const imageUrl = getProductImageUrl(product);
-        const thumb = imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" />` : "No image";
+        const thumb = getProductThumbHtml(product);
         cardEl.innerHTML = `
           <div class="picker-card-thumb">${thumb}</div>
           <div class="picker-card-name">${escapeHtml(product.name)}</div>
@@ -247,8 +246,7 @@
     }
 
     function renderPickerCard(product) {
-      const imageUrl = getProductImageUrl(product);
-      const thumb = imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" />` : "No image";
+      const thumb = getProductThumbHtml(product);
       return `
         <button type="button" class="picker-card" id="pick-${product.id}">
           <div class="picker-card-thumb">${thumb}</div>

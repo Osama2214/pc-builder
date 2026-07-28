@@ -84,8 +84,7 @@
 
       const rows = items
         .map((item) => {
-          const itemImageUrl = getProductImageUrl(item.product);
-          const thumb = itemImageUrl ? `<img src="${escapeHtml(itemImageUrl)}" alt="" />` : "No image";
+          const thumb = getProductThumbHtml(item.product);
           const price = item.product.sale_price ?? item.product.price;
 
           return `

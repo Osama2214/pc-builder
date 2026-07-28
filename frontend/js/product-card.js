@@ -12,10 +12,7 @@ function renderProductCard(product) {
   const discountPercent = getDiscountPercent(product);
   const discountBadge = discountPercent ? `<span class="discount-badge">-${discountPercent}%</span>` : "";
 
-  const imageUrl = getProductImageUrl(product);
-  const thumbHtml = imageUrl
-    ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product.name)}" />`
-    : `No image`;
+  const thumbHtml = getProductThumbHtml(product);
 
   return `
     <div class="product-card">

@@ -863,6 +863,19 @@ p {
   object-fit: cover;
 }
 
+.product-image-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted);
+  opacity: 0.7;
+}
+
+.product-image-placeholder span {
+  font-size: 0.75rem;
+}
+
 .product-card-body {
   padding: 14px 16px 16px;
   display: flex;
@@ -1631,6 +1644,25 @@ p {
   padding: 16px 22px;
   overflow-y: auto;
   flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
 }
 
 .picker-compat-note {

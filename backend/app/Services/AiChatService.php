@@ -86,14 +86,13 @@ class AiChatService
             $specs = [];
 
             if ($product->specification) {
+                // custom_specifications (Recommended PSU, VESA Mount, NAND Type, etc.) is
+                // storefront display enrichment for human shoppers — not something the model
+                // needs for compatibility/budget decisions. Folding it in here nearly doubled
+                // the catalog's token count (145K -> 97K chars measured across 350 products),
+                // which was pushing real requests past the OpenRouter timeout under load.
                 $specs = Arr::except($product->specification->toArray(), ['id', 'product_id', 'created_at', 'updated_at', 'custom_specifications']);
                 $specs = array_filter($specs, fn ($value) => $value !== null && $value !== '');
-
-                foreach ($product->specification->custom_specifications ?? [] as $pair) {
-                    if (! empty($pair['key'])) {
-                        $specs[$pair['key']] = $pair['value'];
-                    }
-                }
             }
 
             return [

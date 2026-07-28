@@ -259,7 +259,7 @@
       const galleryEl = document.getElementById("gallery-main");
       galleryEl.innerHTML = mainImageUrl
         ? `<img src="${escapeHtml(mainImageUrl)}" alt="${escapeHtml(product.name)}" />`
-        : "No image";
+        : PRODUCT_IMAGE_PLACEHOLDER_HTML;
       galleryEl.classList.toggle("product-gallery-main-clickable", !!mainImageUrl);
       galleryEl.onclick = mainImageUrl
         ? () => openImageLightbox(galleryEl.querySelector("img").src, product.name)
@@ -603,8 +603,7 @@
       cmpInitialized = true;
       cmpIds = [Number(productId)];
 
-      const imageUrl = getProductImageUrl(currentProduct);
-      const thumb = imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" />` : "No image";
+      const thumb = getProductThumbHtml(currentProduct);
       document.getElementById("cmp-slot-current").innerHTML = `
         <div class="picker-card-thumb">${thumb}</div>
         <div class="picker-card-name">${escapeHtml(currentProduct.name)}</div>
@@ -770,8 +769,7 @@
     }
 
     function renderCmpPickerCard(product) {
-      const imageUrl = getProductImageUrl(product);
-      const thumb = imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" />` : "No image";
+      const thumb = getProductThumbHtml(product);
       return `
         <button type="button" class="picker-card" id="cmp-pick-${product.id}">
           <div class="picker-card-thumb">${thumb}</div>

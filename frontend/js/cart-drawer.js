@@ -105,8 +105,7 @@ async function loadCartDrawer() {
 }
 
 function renderCartDrawerItem(item) {
-  const imageUrl = getProductImageUrl(item.product);
-  const thumb = imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" />` : "No image";
+  const thumb = getProductThumbHtml(item.product);
 
   return `
     <div class="cart-item">

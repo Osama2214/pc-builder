@@ -3,8 +3,45 @@
 // stateless /ai/chat endpoint (conversation history is kept client-side and resent).
 
 const AI_CHAT_HISTORY_LIMIT = 12;
+const AI_CHAT_STORAGE_KEY = "pcbuilder_ai_chat_history";
+const AI_CHAT_RETENTION_MS = 2 * 24 * 60 * 60 * 1000; // 2 days
+const AI_CHAT_STORED_TURNS_MAX = 40; // keeps localStorage bounded even in a very long-lived tab
 let aiChatHistory = [];
 let aiChatSending = false;
+
+// Persisted as { savedAt, messages }. Read once at widget-injection time — anything
+// older than the retention window is treated as expired and dropped, same as if it
+// had never been saved, rather than silently trusting a stale conversation.
+function loadStoredAiChatHistory() {
+  try {
+    const raw = localStorage.getItem(AI_CHAT_STORAGE_KEY);
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.savedAt !== "number" || !Array.isArray(parsed.messages)) return [];
+
+    if (Date.now() - parsed.savedAt > AI_CHAT_RETENTION_MS) {
+      localStorage.removeItem(AI_CHAT_STORAGE_KEY);
+      return [];
+    }
+
+    return parsed.messages;
+  } catch (error) {
+    return [];
+  }
+}
+
+function persistAiChatHistory() {
+  try {
+    localStorage.setItem(
+      AI_CHAT_STORAGE_KEY,
+      JSON.stringify({ savedAt: Date.now(), messages: aiChatHistory.slice(-AI_CHAT_STORED_TURNS_MAX) })
+    );
+  } catch (error) {
+    // Storage can fail (quota, private browsing) — the conversation just won't
+    // survive a reload in that case, which is a safe degrade, not a hard failure.
+  }
+}
 
 function injectAiChatWidget() {
   if (document.getElementById("ai-chat-launcher")) return;
@@ -34,10 +71,16 @@ function injectAiChatWidget() {
   document.getElementById("ai-chat-close").addEventListener("click", () => setAiChatPanelOpen(false));
   document.getElementById("ai-chat-form").addEventListener("submit", handleAiChatSubmit);
 
-  appendAiChatMessage(
-    "assistant",
-    "Hi! Tell me your budget and what you'll use the PC for (gaming, editing, everyday use...) and I'll help you put a build together from what's actually in stock."
-  );
+  const stored = loadStoredAiChatHistory();
+  if (stored.length) {
+    aiChatHistory = stored;
+    stored.forEach((turn) => appendAiChatMessage(turn.role, turn.text));
+  } else {
+    appendAiChatMessage(
+      "assistant",
+      "Hi! Tell me your budget and what you'll use the PC for (gaming, editing, everyday use...) and I'll help you put a build together from what's actually in stock."
+    );
+  }
 }
 
 function toggleAiChatPanel() {
@@ -152,6 +195,7 @@ async function handleAiChatSubmit(event) {
     setAiChatBubbleText(thinkingBubble, result.data.reply, false);
     aiChatHistory.push({ role: "user", text: message });
     aiChatHistory.push({ role: "assistant", text: result.data.reply });
+    persistAiChatHistory();
 
     const action = result.data.action;
     if (action?.result?.success) {

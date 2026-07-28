@@ -189,8 +189,7 @@
 
       const rows = items
         .map((item) => {
-          const itemImageUrl = getProductImageUrl(item.product);
-          const thumb = itemImageUrl ? `<img src="${escapeHtml(itemImageUrl)}" alt="" />` : "No image";
+          const thumb = getProductThumbHtml(item.product);
           const price = item.product.sale_price ?? item.product.price;
 
           const stepper = slot.multi
@@ -426,8 +425,7 @@
     }
 
     function renderPickerCard(product) {
-      const pickerImageUrl = getProductImageUrl(product);
-      const thumb = pickerImageUrl ? `<img src="${escapeHtml(pickerImageUrl)}" alt="" />` : "No image";
+      const thumb = getProductThumbHtml(product);
       const price = product.sale_price ?? product.price;
       return `
         <button type="button" class="picker-card" id="pick-${product.id}" ${!product.in_stock ? "disabled" : ""}>
