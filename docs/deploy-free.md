@@ -1,86 +1,89 @@
-# نشر المشروع مجانًا (Backend + Frontend)
+# Free deployment (backend + frontend)
 
-الخطة: Backend (Laravel) على **Render.com** (Free Web Service عبر Docker)، و Frontend (HTML/CSS/JS) على **Cloudflare Pages**. الاتنين مجانين تمامًا وملهمش كارت ائتمان.
+Live architecture, entirely on free tiers:
 
-الملفات التالية اتضافت للمشروع عشان دي تشتغل:
-- `backend/Dockerfile`
-- `backend/docker-entrypoint.sh`
-- `backend/.dockerignore`
-- تعديل بسيط في `frontend/js/api.js` عشان يفرق بين local وproduction تلقائيًا حسب الـ domain.
+| Layer | Provider | Notes |
+|---|---|---|
+| Backend (Laravel API) | [Render](https://render.com) — Free Web Service | Docker-based, auto-deploys on push to `main` |
+| Database | [Neon](https://neon.tech) — Free Postgres | Persistent, independent of Render's ephemeral disk |
+| Uploaded images | [Cloudflare R2](https://developers.cloudflare.com/r2/) | S3-compatible, persistent, 10GB free |
+| Frontend (static HTML/JS) | [Vercel](https://vercel.com) | No build step, root directory set to `frontend` |
 
-## قيود الخطة المجانية (مهم تعرفها)
+## Why Postgres + R2 instead of SQLite + local storage
 
-- **Render Free**: الـ service بينام بعد 15 دقيقة بدون طلبات، وأول طلب بعدها بياخد 30-50 ثانية يصحى. طبيعي في الخطة المجانية.
-- **البيانات (SQLite + الصور المرفوعة)**: بتتصفر مع كل **deploy جديد** (يعني كل مرة تعمل push للـ backend). أثناء تشغيل الـ service عاديًا (نوم/صحيان) البيانات بتفضل موجودة، بس أي push جديد للكود بيعمل build جديد وبيمسحها. ده مقبول لمشروع تجريبي/portfolio. لو حبيت لاحقًا ثبات حقيقي للبيانات، الحل إنك تحول الـ DB لقاعدة بيانات خارجية مجانية زي Neon أو Supabase (Postgres) — ده خطوة إضافية ممكن نعملها بعدين لو احتجتها.
-- **الكتالوج (350 منتج)**: `docker-entrypoint.sh` بيتأكد أول ما الـ container يشتغل — لو جدول `products` فاضي، بيشغّل `RealCatalogSeeder` تلقائيًا. يعني كل deploy جديد بيرجع الكتالوج تلقائي من غير ما تعمل حاجة يدوي، بس ده بيمسح ويعيد بناء المنتجات والبراندات من الصفر كل مرة (طبيعي لأن الداتا أصلًا بتتصفر مع كل deploy زي ما فوق).
+Render's free plan has no persistent disk: **any file written to the container's
+local filesystem is lost on every restart**, not just on redeploys — including
+the quiet restart that happens when a free instance spins back up after being
+idle. That made SQLite and locally-stored uploaded images unsuitable for
+anything beyond a single session, since admin-added products/images would
+vanish unpredictably. Moving the database to Neon (external Postgres) and the
+`public` disk to Cloudflare R2 (external S3-compatible storage) takes both out
+of the ephemeral container entirely, so they survive restarts and redeploys.
 
-## الخطوة 1: ادفع التعديلات دي على GitHub
+## Files that make this work
 
-لازم أول حاجة إني أعمل commit و push للتعديلات (Dockerfile وغيره) على الريبو `Osama2214/pc-builder` قبل ما تقدر توصل Render و Cloudflare بيه. هطلب تأكيدك على ده في الشات.
+- `backend/Dockerfile` / `backend/docker-entrypoint.sh` — builds the Laravel
+  app for Render's Docker runtime; on boot it runs migrations and seeds the
+  real catalog only if the `products` table is empty
+  (`php artisan catalog:seed-if-empty`, see
+  `backend/app/Console/Commands/SeedCatalogIfEmpty.php`).
+- `backend/config/filesystems.php` — the `public` disk's driver is
+  `env('PUBLIC_DISK_DRIVER', 'local')`, so it stays `local` for local dev and
+  switches to `s3` (pointed at R2) in production via one env var.
+- `frontend/js/api.js` — picks the API base URL based on `window.location.hostname`
+  (localhost vs. the deployed Render URL).
 
-## الخطوة 2: نشر الـ Backend على Render
-
-1. روح على https://render.com وسجل دخول بحساب GitHub بتاعك (مجاني، من غير كارت).
-2. من الـ Dashboard: **New +** → **Web Service**.
-3. اختار **Connect a repository** وحدد `Osama2214/pc-builder`.
-4. في الإعدادات:
-   - **Name**: `pc-builder-api` (لو الاسم ده مش متاح، اختار اسم تاني وعدّل السطر في `frontend/js/api.js` بعدين ليطابق الاسم).
-   - **Root Directory**: `backend`
-   - **Runtime**: `Docker`
-   - **Instance Type**: `Free`
-   - **Health Check Path**: `/up`
-5. في تبويب **Environment**، استخدم زرار "Add from .env" (أو ضيفهم واحد واحد) والصق البلوك ده:
+## Backend environment variables (Render → Environment tab)
 
 ```
 APP_NAME=PC Builder
 APP_ENV=production
 APP_DEBUG=false
-APP_KEY=base64:TruclTIVSvf2YvkxAeBwpgQC0X+f3RdudAxR7330e8I=
-APP_URL=https://pc-builder-api.onrender.com
+APP_KEY=base64:...
+APP_URL=https://<your-render-service>.onrender.com
 
 APP_LOCALE=en
 APP_FALLBACK_LOCALE=en
-
 BCRYPT_ROUNDS=12
-
 LOG_CHANNEL=stack
 LOG_LEVEL=error
 
-DB_CONNECTION=sqlite
+DB_CONNECTION=pgsql
+DB_URL=<Neon connection string, postgresql://...?sslmode=require>
 
 SESSION_DRIVER=database
 SESSION_LIFETIME=120
-
-FILESYSTEM_DISK=public
 QUEUE_CONNECTION=database
 CACHE_STORE=database
+
+PUBLIC_DISK_DRIVER=s3
+AWS_ACCESS_KEY_ID=<R2 access key id>
+AWS_SECRET_ACCESS_KEY=<R2 secret access key>
+AWS_DEFAULT_REGION=auto
+AWS_BUCKET=<R2 bucket name>
+AWS_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+AWS_URL=<R2 public bucket URL, e.g. https://pub-xxxx.r2.dev>
+AWS_USE_PATH_STYLE_ENDPOINT=true
+
+OPENROUTER_API_KEY=<your key>
+OPENROUTER_MODEL=deepseek/deepseek-chat
 ```
 
-   - غيّر `APP_URL` لو سميت الـ service باسم مختلف (لازم يطابق الـ URL اللي Render هيديهولك بالظبط، بـ https).
-   - كمان ضيف مفاتيح الـ AI بتاعتك من `backend/.env` المحلي (متنساش تنسخهم من عندك، مش هحطهم هنا لأنهم أسرار):
-     - `GEMINI_API_KEY`
-     - `GROQ_API_KEY`
-     - `OPENROUTER_API_KEY`
-     - `OPENROUTER_MODEL` (القيمة: `deepseek/deepseek-chat`)
-6. اضغط **Create Web Service**. أول build بياخد كذا دقيقة (composer install جوه الـ Docker image).
-7. لما يخلص، هيديك URL زي `https://pc-builder-api.onrender.com` — جرب تفتح `<URL>/up` وتتأكد إنه بيرجع استجابة سليمة.
+Render service settings: Root Directory `backend`, Runtime `Docker`, Instance
+Type `Free`, Health Check Path `/up`.
 
-## الخطوة 3: نشر الـ Frontend على Cloudflare Pages
+## Known limitations of the free tier
 
-1. روح على https://pages.cloudflare.com وسجل دخول (مجاني).
-2. **Create application** → **Pages** → **Connect to Git** → اختار الريبو `Osama2214/pc-builder`.
-3. الإعدادات:
-   - **Framework preset**: `None`
-   - **Build command**: (سيبه فاضي)
-   - **Build output directory**: `frontend`
-4. اضغط **Save and Deploy**.
-5. هيديك رابط زي `https://pc-builder.pages.dev` — ده الموقع بتاعك الشغال.
+- The Render free instance spins down after ~15 minutes of inactivity; the
+  first request after that takes 30-50s to wake it back up.
+- Neon's and R2's free tiers have their own usage caps (Neon: compute
+  hours/storage; R2: 10GB storage, 1M Class A / 10M Class B ops per month).
+  Fine for a portfolio/demo project, not sized for real traffic.
 
-## الخطوة 4: تأكد إن كل حاجة متوصلة
+## Frontend (Vercel)
 
-- افتح رابط الـ Cloudflare Pages، جرب تسجل حساب/تسجل دخول، وشوف إن المنتجات بتظهر (ده معناه إنه بينادي الـ API بتاع Render صح).
-- لو الصور مش ظاهرة: يبقى غالبًا `APP_URL` في Render مش مظبوط صح، أو الـ storage link مش اتعمل — جرب تعمل **Manual Deploy** تاني بعد التأكد من الـ env vars.
-
----
-
-بعد كده لو حبيت domain مخصص (اسم دومين بتاعك)، الاتنين (Render و Cloudflare Pages) بيدعموا custom domains مجانًا برضو.
+1. Import the GitHub repo in Vercel.
+2. Root Directory: `frontend`.
+3. Framework Preset: `Other`, no build/install command needed (plain static
+   HTML/CSS/JS).
+4. Deploy.

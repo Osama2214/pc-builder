@@ -427,7 +427,7 @@ class AiChatService
             foreach ($matches[0] as $i => $fullMatch) {
                 // Only treat it as a claimed product if a model-style token (containing a
                 // digit) shows up in the words right after the brand — plain brand mentions
-                // ("ASUS من أفضل الشركات") never trip this.
+                // ("ASUS makes great products") never trip this.
                 if (! preg_match('/\d/', $matches[1][$i])) {
                     continue;
                 }

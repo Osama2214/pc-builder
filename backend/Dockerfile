@@ -5,11 +5,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         unzip \
         libzip-dev \
         libonig-dev \
-        libsqlite3-dev \
         libpq-dev \
         libxml2-dev \
         libcurl4-openssl-dev \
-    && docker-php-ext-install pdo_sqlite pdo_pgsql mbstring bcmath pcntl zip curl dom xml simplexml xmlwriter fileinfo \
+    && docker-php-ext-install pdo_pgsql mbstring bcmath pcntl zip curl dom xml simplexml xmlwriter fileinfo \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
