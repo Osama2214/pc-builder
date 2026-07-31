@@ -2,6 +2,13 @@
 
 An e-commerce platform focused on computer components, built around one core idea: **helping the user assemble a fully compatible PC build**, rather than acting as a generic store that just sells disconnected products.
 
+## Live Demo
+
+- Frontend: [pc-builder-sandy.vercel.app](https://pc-builder-sandy.vercel.app)
+- Backend API: [pc-builder-api-1b1i.onrender.com](https://pc-builder-api-1b1i.onrender.com)
+
+Hosted entirely on free tiers (Render + Vercel + Neon Postgres + Cloudflare R2) — see [docs/deploy-free.md](docs/deploy-free.md) for how it's set up. The backend spins down after periods of inactivity, so the first request may take 30-50s.
+
 ## The Idea
 
 The regular storefront (browse, cart, orders) exists, but it's a supporting feature for "Build a PC" — the page where a user picks each component (CPU, motherboard, RAM, storage, PSU, GPU, cooler, case) and the site actively verifies the parts actually work together (matching CPU/motherboard socket, supported RAM type, enough PSU wattage, GPU length fitting inside the case, etc.) before they buy.
@@ -12,9 +19,9 @@ The regular storefront (browse, cart, orders) exists, but it's a supporting feat
 |---|---|
 | Backend | Laravel 12 (PHP 8.2) |
 | Frontend | Plain HTML / CSS / JavaScript (no framework, no build step) |
-| Database | SQLite (development) |
+| Database | SQLite (local dev) / Postgres via [Neon](https://neon.tech) (production) |
 | Auth | Laravel Sanctum (token-based API auth) |
-| Image storage | Laravel Storage (public disk) |
+| Image storage | Laravel Storage — local disk (dev) / [Cloudflare R2](https://developers.cloudflare.com/r2/) (production) |
 
 ## Project Structure
 
@@ -37,6 +44,7 @@ pc-builder/
 | [docs/features.md](docs/features.md) | Every feature in the site, customer-facing and admin |
 | [docs/business-rules.md](docs/business-rules.md) | Business rules every service layer enforces |
 | [docs/requirements.md](docs/requirements.md) | Original project scope |
+| [docs/deploy-free.md](docs/deploy-free.md) | How the live demo is deployed, entirely on free tiers |
 | [project-status-report.md](project-status-report.md) | Current project status (everything built so far) |
 
 ## Quick Start
