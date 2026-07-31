@@ -6,6 +6,7 @@ use App\Models\Benchmark;
 use App\Models\Brand;
 use App\Models\Build;
 use App\Models\CartItem;
+use App\Models\Category;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductSpecification;
@@ -19,6 +20,7 @@ class RealCatalogSeeder extends Seeder
     public function run(): void
     {
         $this->wipe();
+        $this->seedCategories();
         $this->seedBrands();
         $this->seedCatalog();
         $this->backfillCpuCacheLevels();
@@ -37,6 +39,32 @@ class RealCatalogSeeder extends Seeder
         ProductSpecification::query()->delete();
         Product::withTrashed()->forceDelete();
         Brand::query()->delete();
+    }
+
+    /**
+     * These IDs are referenced directly (not looked up) throughout this seeder
+     * and in describe() below, so they're pinned explicitly rather than left
+     * to auto-increment. Categories 7 and 9 were removed from the catalog and
+     * are intentionally absent.
+     */
+    private function seedCategories(): void
+    {
+        $categories = [
+            1 => ['name' => 'CPUs', 'slug' => 'cpus'],
+            2 => ['name' => 'Graphics Cards', 'slug' => 'gpus'],
+            3 => ['name' => 'Motherboards', 'slug' => 'motherboards'],
+            4 => ['name' => 'Memory', 'slug' => 'ram'],
+            5 => ['name' => 'Power Supplies', 'slug' => 'psu'],
+            6 => ['name' => 'Storage', 'slug' => 'storage'],
+            8 => ['name' => 'Laptops', 'slug' => 'laptops'],
+            10 => ['name' => 'Cases', 'slug' => 'cases'],
+            11 => ['name' => 'Coolers', 'slug' => 'coolers'],
+            12 => ['name' => 'Monitor', 'slug' => 'monitors'],
+        ];
+
+        foreach ($categories as $id => $data) {
+            Category::updateOrCreate(['id' => $id], $data);
+        }
     }
 
     private array $brandIds = [];
