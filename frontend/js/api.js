@@ -6,7 +6,7 @@ const API_BASE_URL = (() => {
   if (hostname === "localhost" || hostname === "127.0.0.1") {
     return "http://127.0.0.1:8000/api";
   }
-  return "https://pc-builder-api.onrender.com/api";
+  return "https://pc-builder-api-1b1i.onrender.com/api";
 })();
 
 class ApiError extends Error {
