@@ -38,13 +38,27 @@ return [
             'report' => false,
         ],
 
+        // Local disk by default (files live in storage/app/public, served via the
+        // storage:link symlink). Set PUBLIC_DISK_DRIVER=s3 in production to point
+        // this same disk at an S3-compatible bucket (e.g. Cloudflare R2) instead —
+        // every Storage::disk('public') call in the app keeps working unchanged.
         'public' => [
-            'driver' => 'local',
+            'driver' => env('PUBLIC_DISK_DRIVER', 'local'),
             'root' => storage_path('app/public'),
-            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,
+
+            // Local-driver key, ignored by the s3 driver.
+            'url' => env('AWS_URL', rtrim(env('APP_URL', 'http://localhost'), '/').'/storage'),
+
+            // S3/R2-driver keys, ignored by the local driver.
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION', 'auto'),
+            'bucket' => env('AWS_BUCKET'),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', true),
         ],
 
         's3' => [
