@@ -152,6 +152,34 @@ A few endpoints are marked **Public\*** — they don't require a token, but beha
 | PATCH | `/banners/{id}` | Admin | Update (e.g. toggle active) |
 | DELETE | `/banners/{id}` | Admin | Delete — also removes the uploaded image file |
 
+## AI Chat
+
+| Method | Path | Access | Description |
+|---|---|---|---|
+| POST | `/ai/chat` | Public\* | Chat with the AI assistant (`throttle:ai-chat`) |
+
+Request body:
+
+```json
+{
+  "message": "Build me a gaming PC for 30000 EGP",
+  "history": [{ "role": "user", "text": "..." }, { "role": "assistant", "text": "..." }]
+}
+```
+
+`message` is required (max 2000 chars); `history` is optional (max 20 entries, each `role` is `user` or `assistant`).
+
+Response (`AiChatService`, wrapped in `{ "data": ... }`):
+
+```json
+{
+  "reply": "Here's a build that fits your budget...",
+  "action": null
+}
+```
+
+`action` is `null` for a plain answer, or `{ "type": "add_to_cart" | "create_build", "result": {...} }` when the assistant actually mutated data (only possible for a logged-in user — a guest gets a reply telling them to log in instead). The assistant answers strictly from the live product catalog passed in its system prompt — it never invents products or prices, and it re-verifies part compatibility (socket, RAM type, PSU wattage, GPU/case clearance) before presenting any build.
+
 ## Admin Dashboard
 
 | Method | Path | Access | Description |

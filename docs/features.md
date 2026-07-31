@@ -44,6 +44,15 @@ The centerpiece feature. A build page with one slot per component type: CPU, Mot
 - Profile page, order history, saved/shared builds list, wishlist, saved addresses (with one default enforced automatically).
 - "Buy Again" button on a past order re-adds all its items to the current cart in one click.
 
+### AI Chat Assistant
+
+A floating chat widget (`js/ai-chat.js`), available to guests and logged-in users on every page, backed by an LLM via OpenRouter (`POST /api/ai/chat` — see `docs/api.md`).
+
+- Answers strictly from the live product catalog it's given — it never invents a product or a price, and says plainly when something isn't in the store.
+- Re-checks part compatibility (socket, RAM type, PSU wattage vs. draw, GPU length vs. case) as the last step before presenting any build, even after swapping a part to fit budget.
+- Can add items to the cart or assemble/save a build directly from the conversation when clearly asked to — logged-in users only; a guest is told to log in instead.
+- Understands requests in Arabic or English equally.
+
 ## Admin Panel
 
 ### Dashboard

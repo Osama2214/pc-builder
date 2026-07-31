@@ -76,6 +76,12 @@ The reference for every rule a Service class must enforce. Any rule listed here 
 - A benchmark result needs `fps` if its target's `type` is `game`, or `score` (with an optional `unit`) if the target's `type` is `software` — enforced on creation.
 - A `benchmark_target` cannot be deleted while it still has benchmark records attached to it.
 
+## 11. AI Chat Assistant
+
+- The assistant only knows about products actually present in the catalog it's given (the active product list, sent fresh on every request) — it must never recommend, price, or invent anything outside of it, and must say plainly when something isn't carried.
+- Mutating actions (add to cart, create a build) require a real logged-in user; a guest asking for one of those gets told to log in instead — the same `add_to_cart`/`create_build` tools are never invoked for a guest.
+- A build the assistant proposes must pass the same compatibility checks as the manual build page (socket, RAM type, PSU wattage, GPU/case clearance) before being presented, re-verified as the last step even if a part was swapped to fit budget.
+
 ---
 
 ## Resolved Decisions
