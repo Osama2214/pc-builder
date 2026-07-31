@@ -1,4 +1,13 @@
-const API_BASE_URL = "http://127.0.0.1:8000/api";
+// Local dev hits the Laravel dev server; anywhere else hits the deployed
+// Render backend. If you rename the Render service, update the URL below
+// to match (it must end in "/api").
+const API_BASE_URL = (() => {
+  const { hostname } = window.location;
+  if (hostname === "localhost" || hostname === "127.0.0.1") {
+    return "http://127.0.0.1:8000/api";
+  }
+  return "https://pc-builder-api.onrender.com/api";
+})();
 
 class ApiError extends Error {
   constructor(message, status, errors = {}) {
