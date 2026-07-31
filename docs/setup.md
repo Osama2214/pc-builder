@@ -93,7 +93,15 @@ Log out and back in on the site afterward — the "Admin Dashboard" link will th
 
 ## 4. Sample Data (optional)
 
-There's a minimal seeder (`database/seeders/DatabaseSeeder.php`) that just creates one test user. Every real category, brand, and product in the project was added by hand through the admin panel, not through seeders — so to browse real data, log in as an admin and add it yourself through the dedicated pages (Categories, Brands, Products).
+`database/seeders/DatabaseSeeder.php` just creates one test user. For a full catalog to browse (350 products across 10 categories, real brands, specs), run the dedicated seeder instead:
+
+```bash
+php artisan db:seed --class=RealCatalogSeeder
+```
+
+This is destructive — it wipes and rebuilds `products`, `product_specifications`, `brands`, and every order/build/cart/review/wishlist/benchmark row tied to them, so only run it on a database you don't mind resetting. It's also what the production deploy runs automatically on first boot if the `products` table is empty (see `app/Console/Commands/SeedCatalogIfEmpty.php`).
+
+Otherwise, log in as an admin and add categories/brands/products by hand through the admin panel.
 
 ## Common Troubleshooting
 

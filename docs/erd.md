@@ -1,6 +1,6 @@
 # Database Schema
 
-All tables live in a single SQLite database. This document lists every table, its columns, and its relationships as they actually exist in the migrations today (not the original design — several tables have grown well past their initial column set as features were added).
+All tables live in a single database — SQLite locally, Postgres (Neon) in production, same schema either way via the same migrations. This document lists every table, its columns, and its relationships as they actually exist in the migrations today (not the original design — several tables have grown well past their initial column set as features were added).
 
 ## `users`
 

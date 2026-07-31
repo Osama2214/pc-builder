@@ -52,6 +52,8 @@ Rather than a separate table per product category or an EAV (entity-attribute-va
 
 Uploaded images (product photos, banners, brand logos) are stored via Laravel's `Storage::disk('public')`, under `storage/app/public/{products,banners,brands}`, and served through the `storage/` symlink created by `php artisan storage:link`. A brand's logo can alternatively be a raw external URL pasted in directly instead of an upload — the resource layer detects which case it is (checks for an `http(s)://` prefix) before deciding whether to resolve it through the disk or return it as-is.
 
+The `public` disk's driver is configurable via `PUBLIC_DISK_DRIVER` (`config/filesystems.php`): `local` (default, used above) for local dev, or `s3` in production to point the same disk at an S3-compatible bucket (Cloudflare R2) instead — every `Storage::disk('public')` call in the app works unchanged either way. Same idea for the database: `sqlite` locally, `pgsql` (Neon) in production, switched purely through `DB_CONNECTION`/`DB_URL`. See `docs/deploy-free.md`.
+
 ### Auth
 
 Laravel Sanctum, token-based (not session cookies) — every authenticated request sends `Authorization: Bearer {token}`. Two guard levels: `auth:sanctum` (any logged-in user) and `auth:sanctum` + a custom `admin` middleware (checks `role === 'admin'`). A handful of routes resolve the user manually via `$request->user('sanctum')` without the middleware, specifically so the same endpoint can serve both guests and logged-in users differently (e.g. showing inactive products only to an admin browsing the public product list).
