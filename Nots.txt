@@ -8,7 +8,7 @@ php -S localhost:5501 -t frontend
 
 http://localhost:5501
 
-
+adminpcbulder714@gmail.com
 adminpcbulder823@gmail.com
 mecw525fA25@
 
@@ -82,3 +82,7 @@ git merge develop
 أو:
 
 git rebase develop
+
+
+
+

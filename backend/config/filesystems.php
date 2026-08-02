@@ -44,7 +44,13 @@ return [
         // every Storage::disk('public') call in the app keeps working unchanged.
         'public' => [
             'driver' => env('PUBLIC_DISK_DRIVER', 'local'),
-            'root' => storage_path('app/public'),
+            // Only meaningful for the local driver — Flysystem's S3 adapter treats "root"
+            // as a literal key prefix, so leaving this set to an absolute container path
+            // (e.g. /var/www/html/storage/app/public) while PUBLIC_DISK_DRIVER=s3 uploads
+            // every file under that whole path inside the bucket and bakes it into every
+            // generated URL too. Must be null/empty on s3 so objects sit at a clean key
+            // (e.g. products/xxx.png) instead of var/www/html/storage/app/public/products/xxx.png.
+            'root' => env('PUBLIC_DISK_DRIVER', 'local') === 'local' ? storage_path('app/public') : '',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,
