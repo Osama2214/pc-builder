@@ -82,7 +82,9 @@ function appendAiChatFaqChips() {
       const item = AI_CHAT_FAQ[Number(btn.dataset.faqIndex)];
       appendAiChatMessage("user", item.q);
       appendAiChatMessage("assistant", item.a);
-      wrap.remove();
+      // Only this question is used up — the rest stay clickable for later.
+      btn.remove();
+      if (!wrap.querySelector(".ai-chat-faq-chip")) wrap.remove();
     });
   });
 
