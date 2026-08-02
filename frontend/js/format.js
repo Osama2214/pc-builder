@@ -54,7 +54,7 @@ const PRODUCT_IMAGE_PLACEHOLDER_HTML = `
 function getProductThumbHtml(product, extraAttrs = "") {
   const imageUrl = getProductImageUrl(product);
   return imageUrl
-    ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product?.name ?? "")}" ${extraAttrs} />`
+    ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product?.name ?? "")}" loading="lazy" decoding="async" ${extraAttrs} />`
     : PRODUCT_IMAGE_PLACEHOLDER_HTML;
 }
 

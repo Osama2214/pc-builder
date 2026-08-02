@@ -17,7 +17,17 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProductImageController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\WishlistController;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+
+// Hit by an external keep-alive ping (see .github/workflows/keep-alive.yml) so the
+// Render free-tier instance and the Neon Postgres compute don't both go to sleep
+// between visits — a real query, not a static response, is what keeps Neon awake.
+Route::get('/health', function () {
+    DB::select('select 1');
+
+    return response()->json(['status' => 'ok']);
+});
 
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:register');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');

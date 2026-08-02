@@ -17,7 +17,35 @@ class ApiError extends Error {
   }
 }
 
+// Several pages independently fetch the same public GET endpoint within
+// moments of each other on page load (e.g. the home page's product grid and
+// the navbar's search-placeholder animation both request "/products"). This
+// cache collapses those into a single network call — short-lived and GET-only,
+// so it never risks serving stale data for anything that mutates.
+const GET_RESPONSE_CACHE_TTL_MS = 15000;
+const getResponseCache = new Map();
+
 async function apiRequest(path, { method = "GET", body, auth = true } = {}) {
+  const cacheKey = !auth && method === "GET" ? path : null;
+  if (cacheKey) {
+    const cached = getResponseCache.get(cacheKey);
+    if (cached) {
+      if (Date.now() - cached.savedAt < GET_RESPONSE_CACHE_TTL_MS) return cached.promise.then((data) => data);
+      getResponseCache.delete(cacheKey);
+    }
+  }
+
+  const requestPromise = performApiRequest(path, { method, body, auth });
+
+  if (cacheKey) {
+    getResponseCache.set(cacheKey, { savedAt: Date.now(), promise: requestPromise });
+    requestPromise.catch(() => getResponseCache.delete(cacheKey));
+  }
+
+  return requestPromise;
+}
+
+async function performApiRequest(path, { method, body, auth }) {
   const headers = { Accept: "application/json" };
   const isFormData = body instanceof FormData;
 
