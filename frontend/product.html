@@ -139,10 +139,12 @@
   </div>
 
   <div class="modal-overlay hidden" id="image-lightbox-overlay">
+    <button type="button" class="image-lightbox-nav image-lightbox-prev hidden" id="image-lightbox-prev" aria-label="Previous image">&#8249;</button>
     <div class="image-lightbox-box">
       <button type="button" class="modal-close image-lightbox-close" id="image-lightbox-close">&times;</button>
       <img id="image-lightbox-img" src="" alt="" />
     </div>
+    <button type="button" class="image-lightbox-nav image-lightbox-next hidden" id="image-lightbox-next" aria-label="Next image">&#8250;</button>
   </div>
 
   <script src="js/auth.js"></script>
@@ -229,6 +231,9 @@
       }
     }
 
+    let lightboxImages = [];
+    let lightboxIndex = 0;
+
     function selectGalleryImage(url) {
       const galleryEl = document.getElementById("gallery-main");
       const img = galleryEl.querySelector("img");
@@ -278,6 +283,7 @@
 
       const thumbsEl = document.getElementById("gallery-thumbs");
       const images = product.images || [];
+      lightboxImages = images.length > 0 ? images.map((img) => img.url) : (mainImageUrl ? [mainImageUrl] : []);
       if (images.length > 1) {
         thumbsEl.classList.remove("hidden");
         thumbsEl.innerHTML = images
@@ -729,10 +735,21 @@
       document.getElementById("cmp-modal-overlay").classList.add("hidden");
     }
 
+    function showLightboxImage(index) {
+      if (lightboxImages.length === 0) return;
+      lightboxIndex = (index + lightboxImages.length) % lightboxImages.length;
+      document.getElementById("image-lightbox-img").src = lightboxImages[lightboxIndex];
+      const hasMultiple = lightboxImages.length > 1;
+      document.getElementById("image-lightbox-prev").classList.toggle("hidden", !hasMultiple);
+      document.getElementById("image-lightbox-next").classList.toggle("hidden", !hasMultiple);
+      selectGalleryImage(lightboxImages[lightboxIndex]);
+    }
+
     function openImageLightbox(url, alt) {
-      document.getElementById("image-lightbox-img").src = url;
       document.getElementById("image-lightbox-img").alt = alt;
       document.getElementById("image-lightbox-overlay").classList.remove("hidden");
+      const index = lightboxImages.indexOf(url);
+      showLightboxImage(index >= 0 ? index : 0);
     }
 
     function closeImageLightbox() {
@@ -740,11 +757,22 @@
     }
 
     document.getElementById("image-lightbox-close").addEventListener("click", closeImageLightbox);
+    document.getElementById("image-lightbox-prev").addEventListener("click", (e) => {
+      e.stopPropagation();
+      showLightboxImage(lightboxIndex - 1);
+    });
+    document.getElementById("image-lightbox-next").addEventListener("click", (e) => {
+      e.stopPropagation();
+      showLightboxImage(lightboxIndex + 1);
+    });
     document.getElementById("image-lightbox-overlay").addEventListener("click", (e) => {
       if (e.target.id === "image-lightbox-overlay") closeImageLightbox();
     });
     document.addEventListener("keydown", (e) => {
+      if (document.getElementById("image-lightbox-overlay").classList.contains("hidden")) return;
       if (e.key === "Escape") closeImageLightbox();
+      if (e.key === "ArrowLeft") showLightboxImage(lightboxIndex - 1);
+      if (e.key === "ArrowRight") showLightboxImage(lightboxIndex + 1);
     });
 
     async function loadCmpPickerProducts() {
