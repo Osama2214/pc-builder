@@ -2760,3 +2760,118 @@ p {
   padding: 9px 16px;
   font-size: 0.85rem;
 }
+
+/* ============================================
+   Responsive (mobile)
+   ============================================ */
+
+@media (max-width: 860px) {
+  .products-layout {
+    flex-direction: column;
+  }
+
+  .filters-sidebar {
+    width: 100%;
+    position: static;
+  }
+}
+
+@media (max-width: 700px) {
+  .navbar-inner {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "brand actions"
+      "search search";
+    height: auto;
+    row-gap: 10px;
+  }
+
+  /* Compound selector to beat the plain .container padding rule regardless of
+     source order — same trick as .btn.btn-auto above. */
+  .container.navbar-inner {
+    padding: 12px 16px;
+  }
+
+  .navbar-inner .brand {
+    grid-area: brand;
+  }
+
+  .navbar-inner .navbar-search {
+    grid-area: search;
+    width: 100%;
+  }
+
+  .navbar-inner .nav-actions {
+    grid-area: actions;
+  }
+
+  .container.navbar-links-row {
+    gap: 16px;
+    padding: 10px 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .container.navbar-links-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .categories-trigger,
+  .nav-links {
+    flex-shrink: 0;
+  }
+
+  .nav-links {
+    gap: 16px;
+  }
+
+  .categories-dropdown {
+    flex-direction: column;
+    width: min(320px, calc(100vw - 32px));
+  }
+
+  .categories-dropdown-list,
+  .categories-dropdown-panel {
+    width: 100%;
+    border-left: none;
+  }
+
+  .categories-dropdown-panel {
+    border-top: 1px solid var(--color-border);
+  }
+
+  .modal-filters {
+    flex-wrap: wrap;
+  }
+
+  .modal-filters input,
+  .modal-filters .cs-select {
+    flex: 1 1 100%;
+  }
+
+  .cmp-starter {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0 16px;
+  }
+
+  .hero-inner h1 {
+    font-size: 1.7rem;
+  }
+
+  .hero {
+    padding: 40px 0;
+  }
+}
+
+@media (max-width: 400px) {
+  .toast-container {
+    left: 16px;
+    right: 16px;
+    max-width: none;
+  }
+}
