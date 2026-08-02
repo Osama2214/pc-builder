@@ -90,7 +90,14 @@
     }
 
     let heroSlides = [];
-    let heroIndex = 0;
+    // Position in the rendered track, which — when there's more than one slide —
+    // has a clone of the last slide prepended and a clone of the first slide
+    // appended (real slide i lives at position i+1). That lets next/prev/autoplay
+    // always step one position in the same direction; once the clone at either
+    // end is reached, handleHeroTrackTransitionEnd snaps back to the matching
+    // real slide with the transition disabled, so the loop keeps sliding forward
+    // (or backward) instead of visibly rewinding to slide 1 every 5 seconds.
+    let heroTrackPosition = 0;
 
     async function loadHeroBanners() {
       try {
@@ -112,15 +119,18 @@
       const carousel = document.getElementById("hero-carousel");
       carousel.classList.remove("hidden");
 
-      const track = document.getElementById("hero-carousel-track");
-      track.innerHTML = heroSlides
-        .map((slide) => {
-          const img = `<img src="${escapeHtml(slide.image_url)}" alt="" />`;
-          return `<div class="hero-carousel-slide">${slide.link_url ? `<a href="${escapeHtml(slide.link_url)}">${img}</a>` : img}</div>`;
-        })
-        .join("");
+      const renderSlide = (slide) => {
+        const img = `<img src="${escapeHtml(slide.image_url)}" alt="" />`;
+        return `<div class="hero-carousel-slide">${slide.link_url ? `<a href="${escapeHtml(slide.link_url)}">${img}</a>` : img}</div>`;
+      };
 
-      if (heroSlides.length > 1) {
+      const track = document.getElementById("hero-carousel-track");
+      const loopable = heroSlides.length > 1;
+      track.innerHTML = loopable
+        ? [heroSlides[heroSlides.length - 1], ...heroSlides, heroSlides[0]].map(renderSlide).join("")
+        : heroSlides.map(renderSlide).join("");
+
+      if (loopable) {
         document.getElementById("hero-prev").classList.remove("hidden");
         document.getElementById("hero-next").classList.remove("hidden");
 
@@ -129,26 +139,67 @@
           .map((_, i) => `<button type="button" class="hero-carousel-dot" data-index="${i}"></button>`)
           .join("");
         dotsEl.querySelectorAll(".hero-carousel-dot").forEach((dot) => {
-          dot.addEventListener("click", () => showHeroSlide(Number(dot.dataset.index)));
+          dot.addEventListener("click", () => goToHeroSlide(Number(dot.dataset.index)));
         });
 
-        setInterval(() => showHeroSlide(heroIndex + 1), 5000);
+        track.addEventListener("transitionend", handleHeroTrackTransitionEnd);
+        setInterval(() => stepHeroSlide(1), 5000);
       }
 
-      showHeroSlide(0);
+      setHeroTrackPosition(loopable ? 1 : 0, false);
     }
 
-    function showHeroSlide(index) {
-      if (heroSlides.length === 0) return;
-      heroIndex = (index + heroSlides.length) % heroSlides.length;
-      document.getElementById("hero-carousel-track").style.transform = `translateX(-${heroIndex * 100}%)`;
+    function setHeroTrackPosition(position, animate) {
+      const track = document.getElementById("hero-carousel-track");
+
+      if (!animate) {
+        track.style.transition = "none";
+      }
+      track.style.transform = `translateX(-${position * 100}%)`;
+      heroTrackPosition = position;
+
+      if (!animate) {
+        track.getBoundingClientRect(); // force a reflow before re-enabling the transition
+        track.style.transition = "";
+      }
+
+      const realIndex = (((position - 1) % heroSlides.length) + heroSlides.length) % heroSlides.length;
       document
         .querySelectorAll(".hero-carousel-dot")
-        .forEach((dot, i) => dot.classList.toggle("active", i === heroIndex));
+        .forEach((dot, i) => dot.classList.toggle("active", i === realIndex));
     }
 
-    document.getElementById("hero-prev").addEventListener("click", () => showHeroSlide(heroIndex - 1));
-    document.getElementById("hero-next").addEventListener("click", () => showHeroSlide(heroIndex + 1));
+    function stepHeroSlide(delta) {
+      if (heroSlides.length <= 1) return;
+
+      // If a previous step landed on a clone and its transitionend snap hasn't
+      // fired yet (e.g. two clicks within the 0.4s transition), correct the
+      // position instantly first so this step never overshoots the track.
+      if (heroTrackPosition === 0) {
+        setHeroTrackPosition(heroSlides.length, false);
+      } else if (heroTrackPosition === heroSlides.length + 1) {
+        setHeroTrackPosition(1, false);
+      }
+
+      setHeroTrackPosition(heroTrackPosition + delta, true);
+    }
+
+    function goToHeroSlide(realIndex) {
+      setHeroTrackPosition(realIndex + 1, true);
+    }
+
+    function handleHeroTrackTransitionEnd(event) {
+      if (event.target !== event.currentTarget || event.propertyName !== "transform") return;
+
+      if (heroTrackPosition === heroSlides.length + 1) {
+        setHeroTrackPosition(1, false);
+      } else if (heroTrackPosition === 0) {
+        setHeroTrackPosition(heroSlides.length, false);
+      }
+    }
+
+    document.getElementById("hero-prev").addEventListener("click", () => stepHeroSlide(-1));
+    document.getElementById("hero-next").addEventListener("click", () => stepHeroSlide(1));
 
     loadHeroBanners();
     loadHomeProducts();

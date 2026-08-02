@@ -244,9 +244,13 @@ async function handleAiChatSubmit(event) {
       body: { message, history: aiChatHistory.slice(-AI_CHAT_HISTORY_LIMIT) },
     });
 
-    setAiChatBubbleText(thinkingBubble, result.data.reply, false);
+    // Defense in depth: never store an empty reply in history — the backend already
+    // guards against this, but an empty entry here would get resent next turn and
+    // permanently break this stored conversation (history.*.text requires non-empty).
+    const replyText = result.data.reply || "Sorry, I didn't get a proper response there — could you try asking again?";
+    setAiChatBubbleText(thinkingBubble, replyText, false);
     aiChatHistory.push({ role: "user", text: message });
-    aiChatHistory.push({ role: "assistant", text: result.data.reply });
+    aiChatHistory.push({ role: "assistant", text: replyText });
     persistAiChatHistory();
 
     const action = result.data.action;
@@ -262,7 +266,21 @@ async function handleAiChatSubmit(event) {
       }
     }
   } catch (error) {
-    setAiChatBubbleText(thinkingBubble, error.message || "Something went wrong — please try again.", true);
+    // A stored history entry from before this fix (an empty assistant reply) fails the
+    // backend's history.*.text validation on every single request from now on unless
+    // it's dropped — recover instead of repeating this same error on every future message.
+    const isBadHistory = error.status === 422 && Object.keys(error.errors || {}).some((key) => key.startsWith("history"));
+    if (isBadHistory) {
+      aiChatHistory = [];
+      persistAiChatHistory();
+      setAiChatBubbleText(
+        thinkingBubble,
+        "Sorry, something went wrong with our conversation history — I've reset it. Please try your message again.",
+        true
+      );
+    } else {
+      setAiChatBubbleText(thinkingBubble, error.message || "Something went wrong — please try again.", true);
+    }
   } finally {
     aiChatSending = false;
     sendBtn.disabled = false;

@@ -45,7 +45,12 @@ class AiChatService
         $toolCall = $this->extractToolCall($response);
 
         if (! $toolCall) {
-            return ['reply' => $this->extractText($response), 'action' => null];
+            // extractText() can come back "" if the model's response had no text content
+            // (e.g. an empty/filtered completion) — never let that reach the client as a
+            // reply, since it gets saved into the client's chat history and resent on the
+            // next turn, where the history.*.text validation rule rejects the empty string
+            // and permanently breaks that stored conversation.
+            return ['reply' => $this->extractText($response) ?: "Sorry, I didn't get a proper response there — could you try asking again?", 'action' => null];
         }
 
         $result = $this->executeTool($user, $toolCall['name'], $toolCall['args']);
