@@ -36,24 +36,44 @@ class CompatibilityService
      */
     public function check(Build $build): string
     {
+        return $this->evaluate($build)['status'];
+    }
+
+    /**
+     * Human-readable explanations for every failing checker (not just the first) —
+     * empty unless check() would return "incompatible".
+     *
+     * @return string[]
+     */
+    public function reasons(Build $build): array
+    {
+        return $this->evaluate($build)['reasons'];
+    }
+
+    /**
+     * @return array{status: string, reasons: string[]}
+     */
+    private function evaluate(Build $build): array
+    {
         $build->loadMissing('items.product.specification');
 
         $itemsBySlot = $build->items->groupBy('slot');
 
         $ranAny = false;
+        $reasons = [];
 
         foreach ($this->checkers as $checker) {
             $result = $checker->check($itemsBySlot);
 
             if ($result === false) {
-                return 'incompatible';
-            }
-
-            if ($result === true) {
+                $reasons[] = $checker->reason();
+            } elseif ($result === true) {
                 $ranAny = true;
             }
         }
 
-        return $ranAny ? 'compatible' : 'incomplete';
+        $status = $reasons !== [] ? 'incompatible' : ($ranAny ? 'compatible' : 'incomplete');
+
+        return ['status' => $status, 'reasons' => $reasons];
     }
 }

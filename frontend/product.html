@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="View specs, pricing, and compatibility details for this PC component." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <title>Product — PC Builder</title>
   <link rel="stylesheet" href="css/main.css" />
@@ -239,6 +240,14 @@
 
     function renderProduct(product) {
       document.title = `${product.name} — PC Builder`;
+      const metaDescription = document.querySelector('meta[name="description"]');
+      if (metaDescription) {
+        const brandPrefix = product.brand?.name ? `${product.brand.name} ` : "";
+        metaDescription.setAttribute(
+          "content",
+          `${brandPrefix}${product.name} — ${formatPrice(product.sale_price ?? product.price)}. View specs, pricing, and compatibility details.`
+        );
+      }
       document.getElementById("product-brand").textContent = product.brand?.name ?? "";
       document.getElementById("product-name").textContent = product.name;
       document.getElementById("product-description").textContent = product.description || "No description available.";
@@ -477,7 +486,7 @@
         const result = await apiRequest(`/products/${productId}/reviews`, { auth: false });
 
         if (result.data.length === 0) {
-          reviewsList.textContent = "No reviews yet.";
+          reviewsList.innerHTML = emptyStateHtml("No reviews yet.");
           return;
         }
 

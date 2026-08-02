@@ -43,6 +43,53 @@ function persistAiChatHistory() {
   }
 }
 
+// Answered instantly, client-side — no /ai/chat call, so these never cost a token.
+// Keep answers accurate to what the app actually does; update this list if that changes.
+const AI_CHAT_FAQ = [
+  {
+    q: "How does compatibility checking work?",
+    a: "When you build a PC on the Build a PC page, we automatically check that your CPU matches your motherboard's socket, RAM type is supported, storage fits the motherboard's interface, your PSU has enough wattage for the GPU, and the GPU/cooler physically fit inside the case you picked — before you can check out.",
+  },
+  {
+    q: "What payment methods do you accept?",
+    a: "Right now we only support Cash on Delivery — you pay when your order arrives.",
+  },
+  {
+    q: "Can I cancel my order?",
+    a: 'Yes, as long as it\'s still "Pending". Once an order moves to Processing or later, it can no longer be cancelled — check its status from My Orders.',
+  },
+  {
+    q: "Is there a warranty on parts?",
+    a: "It depends on the product — open its product page and check under the Buy Now button, which shows the warranty period (in months or years) if the seller specified one.",
+  },
+  {
+    q: "Can I save or share a PC build?",
+    a: "Yes — build one on the Build a PC page, give it a name, and save it. From My Builds you can also make it public to get a shareable link.",
+  },
+];
+
+function appendAiChatFaqChips() {
+  const messagesEl = document.getElementById("ai-chat-messages");
+
+  const wrap = document.createElement("div");
+  wrap.className = "ai-chat-faq";
+  wrap.innerHTML = AI_CHAT_FAQ.map(
+    (item, index) => `<button type="button" class="ai-chat-faq-chip" data-faq-index="${index}">${escapeHtml(item.q)}</button>`
+  ).join("");
+
+  wrap.querySelectorAll(".ai-chat-faq-chip").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const item = AI_CHAT_FAQ[Number(btn.dataset.faqIndex)];
+      appendAiChatMessage("user", item.q);
+      appendAiChatMessage("assistant", item.a);
+      wrap.remove();
+    });
+  });
+
+  messagesEl.appendChild(wrap);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
 function injectAiChatWidget() {
   if (document.getElementById("ai-chat-launcher")) return;
 
@@ -80,6 +127,7 @@ function injectAiChatWidget() {
       "assistant",
       "Hi! Tell me your budget and what you'll use the PC for (gaming, editing, everyday use...) and I'll help you put a build together from what's actually in stock."
     );
+    appendAiChatFaqChips();
   }
 }
 

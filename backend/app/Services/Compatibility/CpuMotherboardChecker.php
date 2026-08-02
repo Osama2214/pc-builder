@@ -6,6 +6,8 @@ use Illuminate\Support\Collection;
 
 class CpuMotherboardChecker implements CompatibilityChecker
 {
+    private string $reason = '';
+
     public function check(Collection $itemsBySlot): ?bool
     {
         $cpu = $itemsBySlot->get('cpu')?->first()?->product;
@@ -22,6 +24,17 @@ class CpuMotherboardChecker implements CompatibilityChecker
             return null;
         }
 
-        return strcasecmp($cpuSocket, $moboSocket) === 0;
+        $compatible = strcasecmp($cpuSocket, $moboSocket) === 0;
+
+        if (! $compatible) {
+            $this->reason = "The CPU socket ({$cpuSocket}) doesn't match the motherboard's socket ({$moboSocket}).";
+        }
+
+        return $compatible;
+    }
+
+    public function reason(): string
+    {
+        return $this->reason;
     }
 }

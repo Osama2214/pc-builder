@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="View the PC parts you've saved for later on PC Builder." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <title>Wishlist — PC Builder</title>
   <link rel="stylesheet" href="css/main.css" />
@@ -48,7 +49,7 @@
       if (items.length === 0) {
         gridEl.innerHTML = "";
         stateEl.classList.remove("hidden");
-        stateEl.textContent = "Your wishlist is empty. Browse products and save some for later.";
+        stateEl.innerHTML = emptyStateHtml("Your wishlist is empty. Browse products and save some for later.");
         return;
       }
 

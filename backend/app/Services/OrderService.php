@@ -17,7 +17,7 @@ class OrderService
 
     public const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded'];
 
-    private const CANCELLABLE_STATUSES = ['pending', 'processing'];
+    private const CANCELLABLE_STATUSES = ['pending'];
 
     /**
      * Turn the user's cart into an order, enforcing business rule 3: re-check

@@ -57,3 +57,19 @@ function getProductThumbHtml(product, extraAttrs = "") {
     ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product?.name ?? "")}" ${extraAttrs} />`
     : PRODUCT_IMAGE_PLACEHOLDER_HTML;
 }
+
+// A single tasteful "nothing here" state — used everywhere a list/section would
+// otherwise just show bare muted text like "No brands yet." against an empty background.
+// `message` is inserted as-is (not escaped) since every call site passes a static string;
+// callers with dynamic text (e.g. API error messages) should escapeHtml() it first.
+function emptyStateHtml(message) {
+  return `
+    <div class="empty-state">
+      <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 12h-6l-2 3h-4l-2-3H2"></path>
+        <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+      </svg>
+      <span>${message}</span>
+    </div>
+  `;
+}

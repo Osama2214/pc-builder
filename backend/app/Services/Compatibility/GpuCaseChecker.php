@@ -6,6 +6,8 @@ use Illuminate\Support\Collection;
 
 class GpuCaseChecker implements CompatibilityChecker
 {
+    private string $reason = '';
+
     public function check(Collection $itemsBySlot): ?bool
     {
         $gpu = $itemsBySlot->get('gpu')?->first()?->product;
@@ -22,6 +24,17 @@ class GpuCaseChecker implements CompatibilityChecker
             return null;
         }
 
-        return $gpuLength <= $maxGpuLength;
+        $compatible = $gpuLength <= $maxGpuLength;
+
+        if (! $compatible) {
+            $this->reason = "The GPU ({$gpuLength}mm) is too long to fit in the case (max {$maxGpuLength}mm).";
+        }
+
+        return $compatible;
+    }
+
+    public function reason(): string
+    {
+        return $this->reason;
     }
 }

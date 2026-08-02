@@ -31,6 +31,15 @@ function displayFormErrors(form, apiError) {
     banner.textContent = apiError.message || "Something went wrong.";
     banner.classList.remove("hidden");
   }
+
+  // Jump to whichever error is topmost — the first invalid field, or the banner if the
+  // error wasn't tied to a specific field — so the user isn't left stranded down by the
+  // submit button wondering why nothing happened.
+  const scrollTarget = form.querySelector(".invalid") || (banner && !banner.classList.contains("hidden") ? banner : null);
+  if (scrollTarget) {
+    scrollTarget.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (typeof scrollTarget.focus === "function") scrollTarget.focus({ preventScroll: true });
+  }
 }
 
 function setButtonLoading(button, isLoading, loadingText = "Please wait...") {

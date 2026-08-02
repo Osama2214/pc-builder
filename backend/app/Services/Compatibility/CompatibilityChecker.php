@@ -11,4 +11,10 @@ interface CompatibilityChecker
      * @return bool|null true = compatible, false = incompatible, null = not enough data to check (missing slot or missing spec field) — never counts as an error
      */
     public function check(Collection $itemsBySlot): ?bool;
+
+    /**
+     * Human-readable explanation for why the most recent check() call returned
+     * false. Only meaningful immediately after a call that returned false.
+     */
+    public function reason(): string;
 }

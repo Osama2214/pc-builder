@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="View your order history on PC Builder." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <title>My Orders — PC Builder</title>
   <link rel="stylesheet" href="css/main.css" />
@@ -42,7 +43,7 @@
         const result = await apiRequest(`/orders?page=${page}`);
 
         if (result.data.length === 0) {
-          stateEl.textContent = "You haven't placed any orders yet.";
+          stateEl.innerHTML = emptyStateHtml("You haven't placed any orders yet.");
           return;
         }
 
@@ -57,7 +58,7 @@
     function renderOrderRow(order) {
       const date = new Date(order.created_at).toLocaleDateString();
       return `
-        <a href="order.html?id=${order.id}" class="list-row" style="text-decoration:none; color:inherit;">
+        <a href="order.html?id=${order.id}&from=my" class="list-row" style="text-decoration:none; color:inherit;">
           <div class="list-row-main">
             <div class="list-row-title">${escapeHtml(order.order_number)}</div>
             <div class="list-row-meta">${date} · ${order.items.length} item${order.items.length === 1 ? "" : "s"}</div>

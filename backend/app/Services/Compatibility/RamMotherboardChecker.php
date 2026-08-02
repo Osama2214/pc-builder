@@ -6,6 +6,8 @@ use Illuminate\Support\Collection;
 
 class RamMotherboardChecker implements CompatibilityChecker
 {
+    private string $reason = '';
+
     public function check(Collection $itemsBySlot): ?bool
     {
         $ramItems = $itemsBySlot->get('ram');
@@ -32,6 +34,8 @@ class RamMotherboardChecker implements CompatibilityChecker
                 }
                 $checked = true;
                 if (strcasecmp($ramType, $moboRamType) !== 0) {
+                    $this->reason = "RAM type ({$ramType}) isn't supported by the motherboard, which needs {$moboRamType}.";
+
                     return false;
                 }
             }
@@ -39,11 +43,19 @@ class RamMotherboardChecker implements CompatibilityChecker
 
         if ($moboSlots) {
             $checked = true;
-            if ($ramItems->sum('quantity') > $moboSlots) {
+            $ramCount = $ramItems->sum('quantity');
+            if ($ramCount > $moboSlots) {
+                $this->reason = "You've selected {$ramCount} RAM stick(s), but the motherboard only has {$moboSlots} slot(s).";
+
                 return false;
             }
         }
 
         return $checked ? true : null;
+    }
+
+    public function reason(): string
+    {
+        return $this->reason;
     }
 }

@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="View and manage the PC builds you've saved on PC Builder." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <title>My Builds — PC Builder</title>
   <link rel="stylesheet" href="css/main.css" />
@@ -48,7 +49,7 @@
 
     function render(builds) {
       if (builds.length === 0) {
-        stateEl.textContent = "You haven't started any builds yet.";
+        stateEl.innerHTML = emptyStateHtml("You haven't started any builds yet.");
         return;
       }
 

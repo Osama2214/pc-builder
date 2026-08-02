@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="View order details, status, and shipping info on PC Builder." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <title>Order — PC Builder</title>
   <link rel="stylesheet" href="css/main.css" />
@@ -12,6 +13,7 @@
 
   <div class="page">
     <div class="container">
+      <a href="orders.html" id="order-back-link" class="link-btn hidden" style="display: inline-block; margin-bottom: 10px;">← Back to Orders</a>
       <div id="state" class="state-message">Loading order...</div>
 
       <div id="order-layout" class="checkout-layout hidden">
@@ -85,10 +87,25 @@
   <script>
     Auth.requireAuth();
 
-    const orderId = new URLSearchParams(window.location.search).get("id");
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // Prefer wherever the user actually came from (?from=my|admin, set by the two order
+    // list pages) — an admin can reach an order detail from either their own "My Orders"
+    // or the admin "All Orders" list, so the role alone isn't enough to know where "back"
+    // should go. Only fall back to a role-based default for direct links/bookmarks.
+    const backLink = document.getElementById("order-back-link");
+    const cameFrom = urlParams.get("from");
+    const goToAdmin = cameFrom === "admin" || (cameFrom !== "my" && Auth.getUser()?.role === "admin");
+    if (goToAdmin) {
+      backLink.href = "admin/orders.html";
+      backLink.textContent = "← Back to All Orders";
+    }
+    backLink.classList.remove("hidden");
+
+    const orderId = urlParams.get("id");
     const stateEl = document.getElementById("state");
     const layoutEl = document.getElementById("order-layout");
-    const CANCELLABLE = ["pending", "processing"];
+    const CANCELLABLE = ["pending"];
     let currentOrderItems = [];
 
     async function loadOrder() {
@@ -189,17 +206,25 @@
       const originalText = btn.textContent;
       btn.textContent = "Adding to cart...";
 
+      // try/finally so the button always comes back even if a request throws in a way
+      // the inner catch doesn't expect (e.g. a deleted product with no snapshot to name).
       const failed = [];
-      for (const item of currentOrderItems) {
-        try {
-          await apiRequest("/cart/items", { method: "POST", body: { product_id: item.product.id, quantity: item.quantity } });
-        } catch (error) {
-          failed.push(item.product.name);
+      try {
+        for (const item of currentOrderItems) {
+          if (!item.product) {
+            failed.push("an item");
+            continue;
+          }
+          try {
+            await apiRequest("/cart/items", { method: "POST", body: { product_id: item.product.id, quantity: item.quantity } });
+          } catch (error) {
+            failed.push(item.product.name);
+          }
         }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
       }
-
-      btn.disabled = false;
-      btn.textContent = originalText;
       refreshCartBadge();
 
       if (failed.length === currentOrderItems.length) {

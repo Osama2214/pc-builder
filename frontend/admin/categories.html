@@ -13,7 +13,10 @@
   <div class="page">
     <div class="container" style="max-width: 700px;">
       <div class="page-header">
-        <h1>Categories</h1>
+        <div>
+          <a href="index.html" class="link-btn" style="display: inline-block; margin-bottom: 10px;">← Back to Dashboard</a>
+          <h1>Categories</h1>
+        </div>
         <button type="button" class="link-btn" id="toggle-form">+ Add category</button>
       </div>
 
@@ -73,7 +76,7 @@
 
     function render(items) {
       stateEl.classList.toggle("hidden", items.length > 0);
-      if (items.length === 0) stateEl.textContent = "No categories yet.";
+      if (items.length === 0) stateEl.innerHTML = emptyStateHtml("No categories yet.");
 
       listEl.innerHTML = items.map(
         (item) => `

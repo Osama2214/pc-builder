@@ -147,7 +147,7 @@ function applyFilters(page = 1) {
     grid.innerHTML = "";
     paginationEl.classList.add("hidden");
     stateMessage.classList.remove("hidden");
-    stateMessage.textContent = "No products found.";
+    stateMessage.innerHTML = emptyStateHtml("No products found.");
     return;
   }
 

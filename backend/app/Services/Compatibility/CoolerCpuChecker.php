@@ -6,6 +6,8 @@ use Illuminate\Support\Collection;
 
 class CoolerCpuChecker implements CompatibilityChecker
 {
+    private string $reason = '';
+
     public function check(Collection $itemsBySlot): ?bool
     {
         $cooler = $itemsBySlot->get('cooler')?->first()?->product;
@@ -25,7 +27,17 @@ class CoolerCpuChecker implements CompatibilityChecker
         }
 
         $supported = array_map(fn ($s) => strtoupper(trim($s)), explode(',', $coolerSockets));
+        $compatible = in_array(strtoupper(trim($cpuSocket)), $supported, true);
 
-        return in_array(strtoupper(trim($cpuSocket)), $supported, true);
+        if (! $compatible) {
+            $this->reason = "The cooler doesn't support the CPU's socket ({$cpuSocket}) — it supports: {$coolerSockets}.";
+        }
+
+        return $compatible;
+    }
+
+    public function reason(): string
+    {
+        return $this->reason;
     }
 }

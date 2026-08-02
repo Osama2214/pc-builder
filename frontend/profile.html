@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Manage your account details and addresses on PC Builder." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <title>My Profile — PC Builder</title>
   <link rel="stylesheet" href="css/main.css" />
@@ -109,7 +110,7 @@
 
     function render(addresses) {
       if (addresses.length === 0) {
-        stateEl.textContent = "No saved addresses yet.";
+        stateEl.innerHTML = emptyStateHtml("No saved addresses yet.");
       } else {
         stateEl.classList.add("hidden");
       }

@@ -13,7 +13,10 @@
   <div class="page">
     <div class="container">
       <div class="page-header">
-        <h1>Products</h1>
+        <div>
+          <a href="index.html" class="link-btn" style="display: inline-block; margin-bottom: 10px;">← Back to Dashboard</a>
+          <h1>Products</h1>
+        </div>
         <a href="product-edit.html" class="btn btn-auto">+ Add product</a>
       </div>
 
@@ -107,7 +110,7 @@
         if (result.data.length === 0) {
           listEl.innerHTML = "";
           paginationEl.classList.add("hidden");
-          stateEl.textContent = "No products found.";
+          stateEl.innerHTML = emptyStateHtml("No products found.");
           return;
         }
 

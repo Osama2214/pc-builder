@@ -13,7 +13,10 @@
   <div class="page">
     <div class="container" style="max-width: 800px;">
       <div class="page-header">
-        <h1 id="page-title">Add Product</h1>
+        <div>
+          <a href="products.html" class="link-btn" style="display: inline-block; margin-bottom: 10px;">← Back to Products</a>
+          <h1 id="page-title">Add Product</h1>
+        </div>
       </div>
 
       <div class="section-card" id="images-card">
@@ -40,12 +43,12 @@
 
           <div class="field">
             <label for="category_id">Category</label>
-            <select id="category_id" name="category_id" required></select>
+            <select id="category_id" name="category_id" data-cs-add-new-label="+ Add new category" required></select>
             <div class="field-error" data-error-for="category_id"></div>
           </div>
           <div class="field">
             <label for="brand_id">Brand</label>
-            <select id="brand_id" name="brand_id" required></select>
+            <select id="brand_id" name="brand_id" data-cs-add-new-label="+ Add new brand" required></select>
             <div class="field-error" data-error-for="brand_id"></div>
           </div>
           <div class="field">
@@ -178,6 +181,7 @@
   <script src="../js/custom-select.js"></script>
   <script src="../js/toast.js"></script>
   <script src="../js/confirm-dialog.js"></script>
+  <script src="../js/prompt-modal.js"></script>
   <script src="../js/form-helpers.js"></script>
   <script>
     Auth.requireAdmin();
@@ -354,6 +358,33 @@
       });
 
       renderSpecFields(Number(catSelect.value));
+    }
+
+    // Lets the "+ Add new ..." footer option in the Category/Brand dropdowns (see
+    // js/custom-select.js) create the record inline instead of forcing a trip to the
+    // separate admin page — only a name is required on either endpoint.
+    function wireInlineAddNew(selectEl, { endpoint, modalTitle, modalLabel, onCreated }) {
+      selectEl.addEventListener("cs-add-new", async () => {
+        const name = await showPromptModal({ title: modalTitle, label: modalLabel, confirmText: "Add" });
+        if (!name) return;
+
+        try {
+          const result = await apiRequest(endpoint, { method: "POST", body: { name } });
+          const created = result.data;
+
+          const opt = document.createElement("option");
+          opt.value = created.id;
+          opt.textContent = created.name;
+          selectEl.appendChild(opt);
+          selectEl.value = created.id;
+          selectEl.dispatchEvent(new Event("change", { bubbles: true }));
+
+          if (onCreated) onCreated(created);
+          showToast(`"${created.name}" added.`, "success");
+        } catch (error) {
+          showToast(error.message || "Could not create that.", "danger");
+        }
+      });
     }
 
     async function loadProduct() {
@@ -644,6 +675,17 @@
         showToast(error.message || "Could not delete this benchmark.", "danger");
       }
     }
+
+    wireInlineAddNew(document.getElementById("category_id"), {
+      endpoint: "/categories",
+      modalTitle: "New category",
+      modalLabel: "Category name",
+    });
+    wireInlineAddNew(document.getElementById("brand_id"), {
+      endpoint: "/brands",
+      modalTitle: "New brand",
+      modalLabel: "Brand name",
+    });
 
     (async () => {
       await loadOptions();

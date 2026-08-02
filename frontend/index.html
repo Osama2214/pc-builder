@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Build a fully compatible custom PC or shop individual computer parts — PC Builder checks CPU, motherboard, RAM, and GPU compatibility before you buy." />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="PC Builder" />
+  <meta property="og:description" content="Build a fully compatible custom PC or shop individual computer parts — PC Builder checks compatibility before you buy." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <title>PC Builder</title>
   <link rel="stylesheet" href="css/main.css" />
@@ -52,6 +56,7 @@
   <script src="js/api.js"></script>
   <script src="js/format.js"></script>
   <script src="js/nav.js"></script>
+  <script src="js/bg-icons.js"></script>
   <script src="js/cart-drawer.js"></script>
   <script src="js/ai-chat.js"></script>
   <script src="js/custom-select.js"></script>
@@ -97,6 +102,9 @@
 
       if (heroSlides.length === 0) {
         document.getElementById("hero-text").classList.remove("hidden");
+        const heroEl = document.getElementById("hero");
+        heroEl.classList.add("bg-icons-host");
+        injectBgIcons(heroEl, HERO_BG_ICON_LAYOUT);
         return;
       }
 

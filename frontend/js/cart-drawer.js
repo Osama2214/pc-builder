@@ -86,7 +86,7 @@ async function loadCartDrawer() {
     setCartBadge(cart.items.length);
 
     if (cart.items.length === 0) {
-      bodyEl.innerHTML = `<p class="state-message">Your cart is empty.</p>`;
+      bodyEl.innerHTML = emptyStateHtml("Your cart is empty.");
       checkoutBtn.classList.add("hidden");
       return;
     }

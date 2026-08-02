@@ -35,9 +35,11 @@ class OrderItem extends Model
         return $this->belongsTo(Order::class);
     }
 
+    // withTrashed() so a product an admin later deletes still shows correctly on past
+    // orders — deleting a product is meant to hide it going forward, not erase history.
     public function product(): BelongsTo
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(Product::class)->withTrashed();
     }
 
     public function build(): BelongsTo

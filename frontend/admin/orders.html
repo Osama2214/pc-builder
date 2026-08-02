@@ -13,7 +13,10 @@
   <div class="page">
     <div class="container">
       <div class="page-header">
-        <h1>All Orders</h1>
+        <div>
+          <a href="index.html" class="link-btn" style="display: inline-block; margin-bottom: 10px;">← Back to Dashboard</a>
+          <h1>All Orders</h1>
+        </div>
       </div>
 
       <div class="filters-bar">
@@ -77,7 +80,7 @@
           listEl.innerHTML = "";
           paginationEl.classList.add("hidden");
           stateEl.classList.remove("hidden");
-          stateEl.textContent = "No orders found.";
+          stateEl.innerHTML = emptyStateHtml("No orders found.");
           return;
         }
 
@@ -93,7 +96,7 @@
     function renderRow(order) {
       const date = new Date(order.created_at).toLocaleDateString();
       return `
-        <a href="/order.html?id=${order.id}" class="list-row" style="text-decoration:none; color:inherit;">
+        <a href="/order.html?id=${order.id}&from=admin" class="list-row" style="text-decoration:none; color:inherit;">
           <div class="list-row-main">
             <div class="list-row-title">${escapeHtml(order.order_number)}</div>
             <div class="list-row-meta">${order.user ? escapeHtml(order.user.name) : "Unknown customer"} · ${date} · ${order.items.length} item${order.items.length === 1 ? "" : "s"}</div>

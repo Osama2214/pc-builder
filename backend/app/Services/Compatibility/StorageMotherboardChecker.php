@@ -6,6 +6,8 @@ use Illuminate\Support\Collection;
 
 class StorageMotherboardChecker implements CompatibilityChecker
 {
+    private string $reason = '';
+
     public function check(Collection $itemsBySlot): ?bool
     {
         $storageItems = $itemsBySlot->get('storage');
@@ -33,10 +35,17 @@ class StorageMotherboardChecker implements CompatibilityChecker
             }
             $checked = true;
             if (! in_array(strtoupper(trim($interface)), $supported, true)) {
+                $this->reason = "Storage interface ({$interface}) isn't supported by the motherboard, which supports: {$moboInterfaces}.";
+
                 return false;
             }
         }
 
         return $checked ? true : null;
+    }
+
+    public function reason(): string
+    {
+        return $this->reason;
     }
 }

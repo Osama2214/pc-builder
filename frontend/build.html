@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Pick each PC component — CPU, motherboard, RAM, storage, PSU, GPU, cooler, and case — and get automatic compatibility checks before you buy." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <title>Build a PC — PC Builder</title>
   <link rel="stylesheet" href="css/main.css" />
@@ -20,16 +21,21 @@
           <div id="slots-container"></div>
         </div>
 
-        <div class="summary-panel">
+        <div class="summary-panel" style="margin-top: 59px;">
           <h3>Summary</h3>
           <div class="summary-stat"><span>Total price</span><span id="summary-price"></span></div>
           <div class="summary-stat"><span>Estimated power</span><span id="summary-power"></span></div>
           <div class="summary-stat"><span>Compatibility</span><span id="summary-compat" class="status-badge"></span></div>
+          <ul id="summary-compat-reasons" class="compat-reasons hidden"></ul>
           <div class="summary-stat"><span>Status</span><span id="summary-status" class="status-badge"></span></div>
 
           <div class="field-error" id="build-error" style="margin-top: 10px;"></div>
 
-          <button type="button" class="btn" id="checkout-build-btn" style="margin-top: 14px;">Buy this build</button>
+          <button type="button" class="btn btn-secondary" id="complete-build-btn" style="margin-top: 14px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: -3px;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>Complete my build
+          </button>
+
+          <button type="button" class="btn" id="checkout-build-btn" style="margin-top: 10px;">Buy this build</button>
 
           <div class="share-row">
             <input type="checkbox" id="share-toggle" />
@@ -233,6 +239,11 @@
       compatEl.textContent = capitalize(currentBuild.compatibility_status);
       compatEl.className = `status-badge status-${currentBuild.compatibility_status}`;
 
+      const reasonsEl = document.getElementById("summary-compat-reasons");
+      const reasons = currentBuild.compatibility_reasons || [];
+      reasonsEl.classList.toggle("hidden", reasons.length === 0);
+      reasonsEl.innerHTML = reasons.map((reason) => `<li>${escapeHtml(reason)}</li>`).join("");
+
       const statusEl = document.getElementById("summary-status");
       statusEl.textContent = capitalize(currentBuild.status);
       statusEl.className = `status-badge status-${currentBuild.status}`;
@@ -263,6 +274,97 @@
     function showBuildError(message) {
       document.getElementById("build-error").textContent = message || "Something went wrong.";
     }
+
+    // Order matters: each slot's compatibility filter (getCompatibilityFilter) only
+    // knows about whatever is already in currentBuild.items, so slots that other slots
+    // depend on for filtering (cpu, motherboard, psu, gpu) go first.
+    const AUTO_FILL_ORDER = ["cpu", "motherboard", "ram", "storage", "psu", "gpu", "cooler", "case"];
+
+    // Fills every still-empty slot with the cheapest in-stock option that's compatible
+    // with whatever's already picked — reuses the exact same filter the manual picker
+    // uses, just always taking the lowest price instead of leaving it to the user.
+    async function completeBuild() {
+      const btn = document.getElementById("complete-build-btn");
+      const originalText = btn.textContent;
+      btn.disabled = true;
+
+      const filled = [];
+      const skipped = [];
+
+      try {
+        for (const slotKey of AUTO_FILL_ORDER) {
+          const slot = BUILD_SLOTS.find((s) => s.key === slotKey);
+          const alreadyFilled = currentBuild.items.some((item) => item.slot === slotKey);
+          if (alreadyFilled) continue;
+
+          btn.textContent = `Finding ${slot.label.toLowerCase()}...`;
+
+          let candidates;
+          try {
+            const categoryId = SLOT_CATEGORY_IDS[slotKey]?.[0];
+            const params = new URLSearchParams();
+            if (categoryId) params.set("category_id", categoryId);
+            const result = await apiRequest(`/products?${params.toString()}`, { auth: false });
+            candidates = result.data;
+          } catch (error) {
+            skipped.push(slot.label);
+            continue;
+          }
+
+          const expectedIds = SLOT_CATEGORY_IDS[slotKey] || [];
+          if (expectedIds.length) {
+            candidates = candidates.filter((p) => expectedIds.includes(p.category?.id));
+          }
+          candidates = candidates.filter((p) => p.in_stock);
+
+          const compatFilter = getCompatibilityFilter(slot);
+          if (compatFilter) {
+            candidates = candidates.filter(compatFilter.predicate);
+          }
+
+          if (candidates.length === 0) {
+            skipped.push(slot.label);
+            continue;
+          }
+
+          candidates.sort((a, b) => (a.sale_price ?? a.price) - (b.sale_price ?? b.price));
+          const chosen = candidates[0];
+
+          try {
+            if (!currentBuild.id) {
+              const created = await apiRequest("/builds", { method: "POST", body: { name: currentBuild.name } });
+              currentBuild = created.data;
+              window.history.replaceState({}, "", `build.html?id=${currentBuild.id}`);
+            }
+
+            await apiRequest(`/builds/${currentBuild.id}/items`, {
+              method: "POST",
+              body: { product_id: chosen.id, slot: slotKey, quantity: 1 },
+            });
+            // Reload so the next slot's compatibility filter sees this pick.
+            await loadBuild(currentBuild.id);
+            filled.push(slot.label);
+          } catch (error) {
+            skipped.push(slot.label);
+          }
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+
+      if (filled.length === 0 && skipped.length === 0) {
+        showToast("Every slot is already filled.", "info");
+      } else if (filled.length === 0) {
+        showToast(`Couldn't find compatible in-stock parts for: ${skipped.join(", ")}.`, "danger");
+      } else if (skipped.length === 0) {
+        showToast(`Added: ${filled.join(", ")}.`, "success");
+      } else {
+        showToast(`Added: ${filled.join(", ")}. Couldn't find options for: ${skipped.join(", ")}.`, "info");
+      }
+    }
+
+    document.getElementById("complete-build-btn").addEventListener("click", completeBuild);
 
     // Build name (save on blur)
     document.getElementById("build-name").addEventListener("blur", async (event) => {
@@ -329,40 +431,49 @@
 
     // Mirrors the pairwise checks in backend/app/Services/Compatibility/*Checker.php — the
     // picker filters to what's actually compatible instead of showing every product and
-    // letting the user find out from the "Incompatible" badge afterwards.
+    // letting the user find out from the "Incompatible" badge afterwards. Each slot can
+    // collect more than one applicable rule at once (e.g. a GPU pick cares about both the
+    // PSU's wattage and the case's clearance), so rules combine with AND instead of the
+    // first match winning.
     function getCompatibilityFilter(slot) {
       const firstInSlot = (key) => currentBuild.items.find((item) => item.slot === key)?.product;
+      const allInSlot = (key) => currentBuild.items.filter((item) => item.slot === key).map((item) => item.product);
       const cpu = firstInSlot("cpu");
       const motherboard = firstInSlot("motherboard");
+      const gpu = firstInSlot("gpu");
+      const psu = firstInSlot("psu");
+      const pcCase = firstInSlot("case");
+
+      const rules = [];
 
       if (slot.key === "motherboard" && cpu?.specification?.socket) {
         const socket = cpu.specification.socket;
-        return {
-          note: `Showing motherboards compatible with your CPU (socket ${socket}).`,
+        rules.push({
+          note: `compatible with your CPU (socket ${socket})`,
           predicate: (p) => p.specification?.socket?.toUpperCase() === socket.toUpperCase(),
-        };
+        });
       }
 
       if (slot.key === "cpu" && motherboard?.specification?.socket) {
         const socket = motherboard.specification.socket;
-        return {
-          note: `Showing CPUs compatible with your motherboard (socket ${socket}).`,
+        rules.push({
+          note: `compatible with your motherboard (socket ${socket})`,
           predicate: (p) => p.specification?.socket?.toUpperCase() === socket.toUpperCase(),
-        };
+        });
       }
 
       if (slot.key === "ram" && motherboard?.specification?.ram_type) {
         const ramType = motherboard.specification.ram_type;
-        return {
-          note: `Showing memory compatible with your motherboard (${ramType}).`,
+        rules.push({
+          note: `compatible with your motherboard (${ramType})`,
           predicate: (p) => p.specification?.ram_type?.toUpperCase() === ramType.toUpperCase(),
-        };
+        });
       }
 
       if (slot.key === "cooler" && cpu?.specification?.socket) {
         const socket = cpu.specification.socket.toUpperCase();
-        return {
-          note: `Showing coolers compatible with your CPU (socket ${socket}).`,
+        rules.push({
+          note: `compatible with your CPU (socket ${socket})`,
           predicate: (p) => {
             const coolerSockets = p.specification?.socket;
             if (!coolerSockets) return false;
@@ -371,10 +482,86 @@
               .map((s) => s.trim().toUpperCase())
               .includes(socket);
           },
-        };
+        });
       }
 
-      return null;
+      if (slot.key === "storage" && motherboard?.specification?.storage_interface) {
+        const supported = motherboard.specification.storage_interface.split(",").map((s) => s.trim().toUpperCase());
+        rules.push({
+          note: `supported by your motherboard (${motherboard.specification.storage_interface})`,
+          predicate: (p) => supported.includes((p.specification?.storage_interface || "").toUpperCase()),
+        });
+      }
+
+      if (slot.key === "motherboard") {
+        const interfaces = [...new Set(allInSlot("storage").map((p) => p.specification?.storage_interface).filter(Boolean))];
+        if (interfaces.length) {
+          rules.push({
+            note: `that support your storage (${interfaces.join(", ")})`,
+            predicate: (p) => {
+              const supported = (p.specification?.storage_interface || "").split(",").map((s) => s.trim().toUpperCase());
+              return interfaces.every((iface) => supported.includes(iface.toUpperCase()));
+            },
+          });
+        }
+      }
+
+      if (slot.key === "gpu") {
+        if (psu?.specification?.wattage) {
+          const cpuDraw = Number(cpu?.specification?.power_draw) || 0;
+          const wattage = Number(psu.specification.wattage);
+          rules.push({
+            note: `within your PSU's capacity (${wattage}W)`,
+            predicate: (p) => {
+              const gpuDraw = Number(p.specification?.power_draw);
+              return !gpuDraw || wattage >= (cpuDraw + gpuDraw) * 1.2;
+            },
+          });
+        }
+        if (pcCase?.specification?.max_gpu_length) {
+          const maxLength = Number(pcCase.specification.max_gpu_length);
+          rules.push({
+            note: `that fit your case (max ${maxLength}mm)`,
+            predicate: (p) => {
+              const length = Number(p.specification?.length_mm);
+              return !length || length <= maxLength;
+            },
+          });
+        }
+      }
+
+      if (slot.key === "psu") {
+        const cpuDraw = Number(cpu?.specification?.power_draw) || 0;
+        const gpuDraw = Number(gpu?.specification?.power_draw) || 0;
+        if (cpuDraw || gpuDraw) {
+          const required = Math.ceil((cpuDraw + gpuDraw) * 1.2);
+          rules.push({
+            note: `with enough wattage for your build (~${required}W needed)`,
+            predicate: (p) => {
+              const wattage = Number(p.specification?.wattage);
+              return !wattage || wattage >= required;
+            },
+          });
+        }
+      }
+
+      if (slot.key === "case" && gpu?.specification?.length_mm) {
+        const length = Number(gpu.specification.length_mm);
+        rules.push({
+          note: `that fit your GPU (${length}mm)`,
+          predicate: (p) => {
+            const maxLength = Number(p.specification?.max_gpu_length);
+            return !maxLength || maxLength >= length;
+          },
+        });
+      }
+
+      if (rules.length === 0) return null;
+
+      return {
+        note: `Showing ${slot.label.toLowerCase()} ${rules.map((r) => r.note).join(", and ")}.`,
+        predicate: (p) => rules.every((r) => r.predicate(p)),
+      };
     }
 
     async function loadPickerProducts() {

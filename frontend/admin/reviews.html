@@ -13,7 +13,10 @@
   <div class="page">
     <div class="container" style="max-width: 800px;">
       <div class="page-header">
-        <h1>Pending Reviews</h1>
+        <div>
+          <a href="index.html" class="link-btn" style="display: inline-block; margin-bottom: 10px;">← Back to Dashboard</a>
+          <h1>Pending Reviews</h1>
+        </div>
       </div>
 
       <div id="state" class="state-message">Loading...</div>
@@ -48,7 +51,7 @@
     function render(reviews) {
       stateEl.classList.toggle("hidden", reviews.length > 0);
       if (reviews.length === 0) {
-        stateEl.textContent = "No pending reviews. All caught up!";
+        stateEl.innerHTML = emptyStateHtml("No pending reviews. All caught up!");
         listEl.innerHTML = "";
         return;
       }
