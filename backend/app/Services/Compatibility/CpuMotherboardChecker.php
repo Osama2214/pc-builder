@@ -24,7 +24,7 @@ class CpuMotherboardChecker implements CompatibilityChecker
             return null;
         }
 
-        $compatible = strcasecmp($cpuSocket, $moboSocket) === 0;
+        $compatible = SpecMatcher::matches($cpuSocket, $moboSocket);
 
         if (! $compatible) {
             $this->reason = "The CPU socket ({$cpuSocket}) doesn't match the motherboard's socket ({$moboSocket}).";

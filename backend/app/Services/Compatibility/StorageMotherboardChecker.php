@@ -25,7 +25,7 @@ class StorageMotherboardChecker implements CompatibilityChecker
             return null;
         }
 
-        $supported = array_map(fn ($i) => strtoupper(trim($i)), explode(',', $moboInterfaces));
+        $supported = explode(',', $moboInterfaces);
         $checked = false;
 
         foreach ($storageItems as $storageItem) {
@@ -34,7 +34,7 @@ class StorageMotherboardChecker implements CompatibilityChecker
                 continue;
             }
             $checked = true;
-            if (! in_array(strtoupper(trim($interface)), $supported, true)) {
+            if (empty(array_filter($supported, fn ($s) => SpecMatcher::matches($interface, $s)))) {
                 $this->reason = "Storage interface ({$interface}) isn't supported by the motherboard, which supports: {$moboInterfaces}.";
 
                 return false;

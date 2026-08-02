@@ -17,6 +17,19 @@ function getDiscountPercent(product) {
   return Math.round(((price - salePrice) / price) * 100);
 }
 
+// Mirrors backend/app/Services/Compatibility/SpecMatcher.php — catalog spec values
+// aren't always entered as a single clean token (a motherboard's socket might be the
+// full marketing string "AMD Ryzen 9000/8000/7000 Series Desktop Processors (Socket
+// AM5)" instead of just "AM5"), so two values are treated as a match if either one,
+// once stripped down to just letters and digits, contains the other as a substring.
+function specValuesMatch(a, b) {
+  const normalize = (value) => (value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const na = normalize(a);
+  const nb = normalize(b);
+  if (!na || !nb) return false;
+  return na.includes(nb) || nb.includes(na);
+}
+
 function escapeHtml(value) {
   const div = document.createElement("div");
   div.textContent = value ?? "";

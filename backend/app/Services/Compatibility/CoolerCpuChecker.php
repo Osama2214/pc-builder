@@ -26,8 +26,8 @@ class CoolerCpuChecker implements CompatibilityChecker
             return null;
         }
 
-        $supported = array_map(fn ($s) => strtoupper(trim($s)), explode(',', $coolerSockets));
-        $compatible = in_array(strtoupper(trim($cpuSocket)), $supported, true);
+        $supported = explode(',', $coolerSockets);
+        $compatible = ! empty(array_filter($supported, fn ($s) => SpecMatcher::matches($cpuSocket, $s)));
 
         if (! $compatible) {
             $this->reason = "The cooler doesn't support the CPU's socket ({$cpuSocket}) — it supports: {$coolerSockets}.";

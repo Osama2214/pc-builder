@@ -33,7 +33,7 @@ class RamMotherboardChecker implements CompatibilityChecker
                     continue;
                 }
                 $checked = true;
-                if (strcasecmp($ramType, $moboRamType) !== 0) {
+                if (! SpecMatcher::matches($ramType, $moboRamType)) {
                     $this->reason = "RAM type ({$ramType}) isn't supported by the motherboard, which needs {$moboRamType}.";
 
                     return false;

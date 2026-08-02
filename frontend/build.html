@@ -494,7 +494,7 @@
         const socket = cpu.specification.socket;
         rules.push({
           note: `compatible with your CPU (socket ${socket})`,
-          predicate: (p) => p.specification?.socket?.toUpperCase() === socket.toUpperCase(),
+          predicate: (p) => specValuesMatch(p.specification?.socket, socket),
         });
       }
 
@@ -502,7 +502,7 @@
         const socket = motherboard.specification.socket;
         rules.push({
           note: `compatible with your motherboard (socket ${socket})`,
-          predicate: (p) => p.specification?.socket?.toUpperCase() === socket.toUpperCase(),
+          predicate: (p) => specValuesMatch(p.specification?.socket, socket),
         });
       }
 
@@ -510,30 +510,27 @@
         const ramType = motherboard.specification.ram_type;
         rules.push({
           note: `compatible with your motherboard (${ramType})`,
-          predicate: (p) => p.specification?.ram_type?.toUpperCase() === ramType.toUpperCase(),
+          predicate: (p) => specValuesMatch(p.specification?.ram_type, ramType),
         });
       }
 
       if (slot.key === "cooler" && cpu?.specification?.socket) {
-        const socket = cpu.specification.socket.toUpperCase();
+        const socket = cpu.specification.socket;
         rules.push({
           note: `compatible with your CPU (socket ${socket})`,
           predicate: (p) => {
             const coolerSockets = p.specification?.socket;
             if (!coolerSockets) return false;
-            return coolerSockets
-              .split(",")
-              .map((s) => s.trim().toUpperCase())
-              .includes(socket);
+            return coolerSockets.split(",").some((s) => specValuesMatch(s, socket));
           },
         });
       }
 
       if (slot.key === "storage" && motherboard?.specification?.storage_interface) {
-        const supported = motherboard.specification.storage_interface.split(",").map((s) => s.trim().toUpperCase());
+        const supported = motherboard.specification.storage_interface.split(",");
         rules.push({
           note: `supported by your motherboard (${motherboard.specification.storage_interface})`,
-          predicate: (p) => supported.includes((p.specification?.storage_interface || "").toUpperCase()),
+          predicate: (p) => supported.some((s) => specValuesMatch(p.specification?.storage_interface, s)),
         });
       }
 
@@ -543,8 +540,8 @@
           rules.push({
             note: `that support your storage (${interfaces.join(", ")})`,
             predicate: (p) => {
-              const supported = (p.specification?.storage_interface || "").split(",").map((s) => s.trim().toUpperCase());
-              return interfaces.every((iface) => supported.includes(iface.toUpperCase()));
+              const supported = (p.specification?.storage_interface || "").split(",");
+              return interfaces.every((iface) => supported.some((s) => specValuesMatch(s, iface)));
             },
           });
         }
