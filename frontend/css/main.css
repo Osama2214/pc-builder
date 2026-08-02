@@ -2239,6 +2239,16 @@ p {
   color: var(--color-text);
 }
 
+.categories-dropdown-panel-title-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.categories-dropdown-panel-title-link:hover {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
 .categories-dropdown-panel .state-message {
   padding: 0;
 }

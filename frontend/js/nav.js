@@ -157,7 +157,7 @@ function renderCategoriesMenu() {
           <div class="state-message">Loading...</div>
         </div>
         <div class="categories-dropdown-panel hidden" id="categories-dropdown-panel">
-          <h4 id="categories-dropdown-panel-title"></h4>
+          <h4><a href="/products.html" id="categories-dropdown-panel-title" class="categories-dropdown-panel-title-link"></a></h4>
           <div id="categories-dropdown-panel-body"></div>
         </div>
       </div>
@@ -248,6 +248,7 @@ function showCategoryPanel(item) {
 
   panel.classList.remove("hidden");
   titleEl.textContent = categoryName;
+  titleEl.href = `/products.html?category_id=${categoryId}`;
 
   if (categoryBrandsCache[categoryId]) {
     renderCategoryPanelBody(bodyEl, categoryId, categoryBrandsCache[categoryId]);
