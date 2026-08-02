@@ -13,7 +13,49 @@
 
   <div class="page">
     <div class="container">
-      <div id="build-state" class="state-message">Loading your build...</div>
+      <div id="build-state" class="build-layout">
+        <div>
+          <div class="skeleton-line skeleton-pulse" style="width:220px; height:24px; margin-bottom:20px;"></div>
+          <div class="slot-card">
+            <div class="slot-card-header"><div class="skeleton-line skeleton-pulse" style="width:110px;"></div></div>
+            <div class="slot-item-row">
+              <div class="slot-item-thumb skeleton-pulse"></div>
+              <div class="slot-item-info">
+                <div class="skeleton-line skeleton-pulse" style="width:70%;"></div>
+                <div class="skeleton-line skeleton-pulse" style="width:40%; margin-top:6px;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="slot-card">
+            <div class="slot-card-header"><div class="skeleton-line skeleton-pulse" style="width:140px;"></div></div>
+            <div class="slot-item-row">
+              <div class="slot-item-thumb skeleton-pulse"></div>
+              <div class="slot-item-info">
+                <div class="skeleton-line skeleton-pulse" style="width:60%;"></div>
+                <div class="skeleton-line skeleton-pulse" style="width:35%; margin-top:6px;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="slot-card">
+            <div class="slot-card-header"><div class="skeleton-line skeleton-pulse" style="width:95px;"></div></div>
+            <div class="slot-item-row">
+              <div class="slot-item-thumb skeleton-pulse"></div>
+              <div class="slot-item-info">
+                <div class="skeleton-line skeleton-pulse" style="width:75%;"></div>
+                <div class="skeleton-line skeleton-pulse" style="width:45%; margin-top:6px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="summary-panel">
+          <div class="skeleton-line skeleton-pulse" style="width:80px; height:18px; margin-bottom:18px;"></div>
+          <div class="skeleton-line skeleton-pulse" style="width:100%; margin-bottom:12px;"></div>
+          <div class="skeleton-line skeleton-pulse" style="width:100%; margin-bottom:12px;"></div>
+          <div class="skeleton-line skeleton-pulse" style="width:100%; margin-bottom:12px;"></div>
+          <div class="skeleton-line skeleton-pulse" style="width:100%; height:40px; margin-top:16px; border-radius:8px;"></div>
+        </div>
+      </div>
 
       <div id="build-layout" class="build-layout hidden">
         <div>
@@ -120,7 +162,9 @@
       try {
         await loadBuild(buildId);
       } catch (error) {
-        document.getElementById("build-state").textContent = error.message || "Could not load your build.";
+        const stateEl = document.getElementById("build-state");
+        stateEl.className = "state-message";
+        stateEl.textContent = error.message || "Could not load your build.";
       }
     }
 
@@ -567,7 +611,7 @@
     async function loadPickerProducts() {
       const grid = document.getElementById("picker-grid");
       const noteEl = document.getElementById("picker-compat-note");
-      grid.innerHTML = `<p class="state-message">Loading...</p>`;
+      grid.innerHTML = pickerSkeletonGridHtml(8);
       noteEl.classList.add("hidden");
 
       const params = new URLSearchParams();

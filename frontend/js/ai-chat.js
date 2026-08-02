@@ -232,8 +232,10 @@ async function handleAiChatSubmit(event) {
   appendAiChatMessage("user", message);
 
   const sendBtn = document.getElementById("ai-chat-send");
+  const sendBtnDefaultHtml = sendBtn.innerHTML;
   aiChatSending = true;
   sendBtn.disabled = true;
+  sendBtn.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span>';
   const thinkingBubble = appendAiChatMessage("assistant", "Thinking...");
 
   try {
@@ -264,6 +266,7 @@ async function handleAiChatSubmit(event) {
   } finally {
     aiChatSending = false;
     sendBtn.disabled = false;
+    sendBtn.innerHTML = sendBtnDefaultHtml;
   }
 }
 

@@ -58,6 +58,38 @@ function getProductThumbHtml(product, extraAttrs = "") {
     : PRODUCT_IMAGE_PLACEHOLDER_HTML;
 }
 
+// Placeholder cards shown in a .product-grid while the real product list is
+// still loading — same markup shape as renderProductCard() so the grid doesn't
+// jump when real cards swap in.
+function productSkeletonGridHtml(count) {
+  const card = `
+    <div class="product-card">
+      <div class="product-thumb skeleton-pulse"></div>
+      <div class="product-card-body">
+        <div class="skeleton-line skeleton-pulse" style="width:40%"></div>
+        <div class="skeleton-line skeleton-pulse" style="width:85%"></div>
+        <div class="product-card-price-row">
+          <div class="skeleton-line skeleton-pulse" style="width:70px"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  return Array.from({ length: count }, () => card).join("");
+}
+
+// Same idea as productSkeletonGridHtml(), but shaped like the smaller
+// .picker-card used in the Build a PC part picker.
+function pickerSkeletonGridHtml(count) {
+  const card = `
+    <div class="picker-card">
+      <div class="picker-card-thumb skeleton-pulse"></div>
+      <div class="skeleton-line skeleton-pulse" style="width:80%"></div>
+      <div class="skeleton-line skeleton-pulse" style="width:50%; margin-top:4px;"></div>
+    </div>
+  `;
+  return Array.from({ length: count }, () => card).join("");
+}
+
 // A single tasteful "nothing here" state — used everywhere a list/section would
 // otherwise just show bare muted text like "No brands yet." against an empty background.
 // `message` is inserted as-is (not escaped) since every call site passes a static string;

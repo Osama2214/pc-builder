@@ -94,9 +94,8 @@ function productMatchesFilters(product) {
 }
 
 async function loadCandidatePool() {
-  stateMessage.classList.remove("hidden");
-  stateMessage.textContent = "Loading products...";
-  grid.innerHTML = "";
+  stateMessage.classList.add("hidden");
+  grid.innerHTML = productSkeletonGridHtml(PAGE_SIZE);
   paginationEl.classList.add("hidden");
 
   const params = new URLSearchParams();
@@ -131,6 +130,8 @@ async function loadCandidatePool() {
     buildSidebar();
     applyFilters(1);
   } catch (error) {
+    grid.innerHTML = "";
+    stateMessage.classList.remove("hidden");
     stateMessage.textContent = error.message || "Could not load products.";
   }
 }
