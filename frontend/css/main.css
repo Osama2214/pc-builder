@@ -488,6 +488,10 @@ p {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* The ‹ › glyphs sit slightly below their own line box in most fonts —
+     this nudges just the character up within the button without moving
+     the button itself (already centered via top/translateY above). */
+  padding-bottom: 2px;
 }
 
 .hero-carousel-nav:hover {
@@ -1278,6 +1282,8 @@ p {
   align-items: center;
   justify-content: center;
   z-index: 1;
+  /* Same glyph-centering nudge as .hero-carousel-nav — see its comment. */
+  padding-bottom: 3px;
 }
 
 .image-lightbox-nav:hover {

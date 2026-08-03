@@ -94,10 +94,15 @@
     // has a clone of the last slide prepended and a clone of the first slide
     // appended (real slide i lives at position i+1). That lets next/prev/autoplay
     // always step one position in the same direction; once the clone at either
-    // end is reached, handleHeroTrackTransitionEnd snaps back to the matching
-    // real slide with the transition disabled, so the loop keeps sliding forward
-    // (or backward) instead of visibly rewinding to slide 1 every 5 seconds.
+    // end is reached, a timer (see HERO_TRANSITION_MS below) snaps back to the
+    // matching real slide with the transition disabled, so the loop keeps sliding
+    // forward (or backward) instead of visibly rewinding to slide 1 every 5 seconds.
     let heroTrackPosition = 0;
+    let heroSnapTimer = null;
+    // Must match .hero-carousel-track's CSS transition duration (plus a small
+    // buffer) — a setTimeout rather than a `transitionend` listener, since
+    // transitionend doesn't reliably fire for a backgrounded/non-visible tab.
+    const HERO_TRANSITION_MS = 450;
 
     async function loadHeroBanners() {
       try {
@@ -142,7 +147,6 @@
           dot.addEventListener("click", () => goToHeroSlide(Number(dot.dataset.index)));
         });
 
-        track.addEventListener("transitionend", handleHeroTrackTransitionEnd);
         setInterval(() => stepHeroSlide(1), 5000);
       }
 
@@ -151,6 +155,7 @@
 
     function setHeroTrackPosition(position, animate) {
       const track = document.getElementById("hero-carousel-track");
+      clearTimeout(heroSnapTimer);
 
       if (!animate) {
         track.style.transition = "none";
@@ -161,6 +166,14 @@
       if (!animate) {
         track.getBoundingClientRect(); // force a reflow before re-enabling the transition
         track.style.transition = "";
+      } else if (position === 0 || position === heroSlides.length + 1) {
+        // Landed on a clone — once its (animated) slide-in finishes, snap back to
+        // the matching real slide with the transition disabled. The clone is
+        // visually identical to that real slide, so this reads as an uninterrupted
+        // loop instead of a jump.
+        heroSnapTimer = setTimeout(() => {
+          setHeroTrackPosition(position === 0 ? heroSlides.length : 1, false);
+        }, HERO_TRANSITION_MS);
       }
 
       const realIndex = (((position - 1) % heroSlides.length) + heroSlides.length) % heroSlides.length;
@@ -172,8 +185,8 @@
     function stepHeroSlide(delta) {
       if (heroSlides.length <= 1) return;
 
-      // If a previous step landed on a clone and its transitionend snap hasn't
-      // fired yet (e.g. two clicks within the 0.4s transition), correct the
+      // If a previous step landed on a clone and its snap-back timer hasn't fired
+      // yet (e.g. two clicks within the transition duration), correct the
       // position instantly first so this step never overshoots the track.
       if (heroTrackPosition === 0) {
         setHeroTrackPosition(heroSlides.length, false);
@@ -186,16 +199,6 @@
 
     function goToHeroSlide(realIndex) {
       setHeroTrackPosition(realIndex + 1, true);
-    }
-
-    function handleHeroTrackTransitionEnd(event) {
-      if (event.target !== event.currentTarget || event.propertyName !== "transform") return;
-
-      if (heroTrackPosition === heroSlides.length + 1) {
-        setHeroTrackPosition(1, false);
-      } else if (heroTrackPosition === 0) {
-        setHeroTrackPosition(heroSlides.length, false);
-      }
     }
 
     document.getElementById("hero-prev").addEventListener("click", () => stepHeroSlide(-1));
