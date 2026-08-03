@@ -252,11 +252,13 @@
 
           return `
             <div class="slot-item-row">
-              <div class="slot-item-thumb">${thumb}</div>
-              <div class="slot-item-info">
-                <div class="slot-item-name">${escapeHtml(item.product.name)}</div>
-                <div class="slot-item-price">${formatPrice(price)}</div>
-              </div>
+              <a class="slot-item-link" href="product.html?id=${item.product.id}" target="_blank" rel="noopener">
+                <div class="slot-item-thumb">${thumb}</div>
+                <div class="slot-item-info">
+                  <div class="slot-item-name">${escapeHtml(item.product.name)}</div>
+                  <div class="slot-item-price">${formatPrice(price)}</div>
+                </div>
+              </a>
               ${stepper}
               <button type="button" class="cart-item-remove" id="remove-item-${item.id}">Remove</button>
             </div>

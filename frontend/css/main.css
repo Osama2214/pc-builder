@@ -1453,6 +1453,22 @@ p {
   min-width: 0;
 }
 
+.cart-item-link {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.cart-item-link:hover {
+  text-decoration: none;
+}
+
+.cart-item-link:hover .cart-item-name {
+  color: var(--color-primary);
+}
+
 .cart-item-name {
   font-weight: 600;
   font-size: 0.92rem;
@@ -1688,6 +1704,24 @@ p {
 
 .slot-item-row:first-of-type {
   border-top: none;
+}
+
+.slot-item-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.slot-item-link:hover {
+  text-decoration: none;
+}
+
+.slot-item-link:hover .slot-item-name {
+  color: var(--color-primary);
 }
 
 .slot-item-thumb {

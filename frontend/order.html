@@ -144,17 +144,27 @@
       document.getElementById("order-total").textContent = formatPrice(order.total_price);
 
       document.getElementById("order-items").innerHTML = order.items
-        .map(
-          (item) => `
+        .map((item) => {
+          // item.product can be missing if the product was later deleted — in that
+          // case there's no page to link to, so fall back to plain (unlinked) text
+          // (same defensive check the "Buy again" logic below already relies on).
+          const info = `
+            <div class="cart-item-info">
+              <div class="cart-item-name">${item.product ? escapeHtml(item.product.name) : "Product no longer available"}</div>
+              <div class="cart-item-price">${formatPrice(item.price)} × ${item.quantity}</div>
+            </div>
+          `;
+          const infoHtml = item.product
+            ? `<a class="cart-item-link" href="product.html?id=${item.product.id}" target="_blank" rel="noopener">${info}</a>`
+            : info;
+
+          return `
             <div class="cart-item">
-              <div class="cart-item-info">
-                <div class="cart-item-name">${escapeHtml(item.product.name)}</div>
-                <div class="cart-item-price">${formatPrice(item.price)} × ${item.quantity}</div>
-              </div>
+              ${infoHtml}
               <div style="font-weight:600;">${formatPrice(item.line_total)}</div>
             </div>
-          `
-        )
+          `;
+        })
         .join("");
 
       const address = order.address;
