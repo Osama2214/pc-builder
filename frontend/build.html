@@ -435,7 +435,9 @@
     // Keyed by category ID rather than name — a name (or slug) can be edited from the
     // Categories admin page, which would otherwise silently break this matching. IDs are
     // specific to this database: 1 CPUs, 2 Graphics Cards, 3 Motherboards, 4 Memory,
-    // 5 Power Supplies, 6 Storage, 8 Laptops, 10 Cases, 11 Coolers.
+    // 5 Power Supplies, 6 Storage, 8 Laptops, 10 Cases, 11 Coolers. Category 13 (Case Fans —
+    // standalone ARGB fan/lighting kits, not real CPU coolers) is deliberately absent here:
+    // those products are browsable/purchasable normally but never offered in any build slot.
     const SLOT_CATEGORY_IDS = {
       cpu: [1],
       motherboard: [3],

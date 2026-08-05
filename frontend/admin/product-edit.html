@@ -261,7 +261,7 @@
     // page (name and slug are both editable there and would silently break this
     // matching). IDs are specific to this database: 1 CPUs, 2 Graphics Cards,
     // 3 Motherboards, 4 Memory, 5 Power Supplies, 6 Storage, 8 Laptops, 10 Cases,
-    // 11 Coolers, 12 Monitor.
+    // 11 Coolers, 12 Monitor, 13 Case Fans.
     const CATEGORY_SPEC_FIELDS = {
       1: ["socket", "cores", "threads", "clock_speed", "boost_clock", "cpu_generation", "architecture", "integrated_graphics", "cache_size", "l1_cache", "l2_cache", "l3_cache", "power_draw"], // CPUs
       3: ["socket", "chipset", "form_factor", "pcie_version", "pcie_slots", "ram_type", "memory_slots", "max_memory", "m2_slots", "sata_ports", "storage_interface", "wifi"], // Motherboards
@@ -273,6 +273,9 @@
       10: ["form_factor", "max_gpu_length"], // Cases
       11: ["socket", "cooler_type", "fan_size", "max_tdp"], // Coolers
       12: ["screen_size", "resolution", "refresh_rate", "panel_type", "response_time", "video_ports"], // Monitor
+      // Standalone case-fan / lighting kits — not real CPU coolers, so no `socket`/`max_tdp`
+      // (those specifically feed the cooler↔CPU compatibility checker and would be misleading here).
+      13: ["cooler_type", "fan_size"], // Case Fans
     };
 
     function renderSpecFields(categoryId, values) {
