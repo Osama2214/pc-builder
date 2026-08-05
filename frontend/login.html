@@ -3,12 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script>
+    document.documentElement.setAttribute("data-theme", localStorage.getItem("theme") || "dark");
+  </script>
   <meta name="description" content="Log in to PC Builder to build, save, and buy your PC." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <title>Login — PC Builder</title>
   <link rel="stylesheet" href="css/main.css" />
 </head>
 <body>
+  <header class="auth-header">
+    <div class="container auth-header-inner">
+      <a href="index.html" class="brand">PC Builder</a>
+      <div id="theme-toggle-container"></div>
+    </div>
+  </header>
+
   <div class="page-center bg-icons-host">
     <div class="card">
       <h1>Welcome back</h1>
@@ -42,6 +52,7 @@
   <script src="js/api.js"></script>
   <script src="js/form-helpers.js"></script>
   <script src="js/bg-icons.js"></script>
+  <script src="js/nav.js"></script>
   <script>
     Auth.redirectIfAuthenticated("index.html");
 

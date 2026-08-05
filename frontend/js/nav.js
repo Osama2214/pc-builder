@@ -1,6 +1,16 @@
 function renderNavbar() {
   const placeholder = document.getElementById("navbar-placeholder");
-  if (!placeholder) return;
+  const themeContainer = document.getElementById("theme-toggle-container");
+
+  if (!placeholder) {
+    if (themeContainer) {
+      themeContainer.innerHTML = renderThemeToggle();
+      wireThemeToggle();
+    } else {
+      loadTheme();
+    }
+    return;
+  }
 
   const user = Auth.getUser();
   const loggedIn = Auth.isLoggedIn() && user;
