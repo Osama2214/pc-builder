@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script>
+    // Set the saved theme before first paint so returning users with "light"
+    // saved don't see a flash of the dark theme while nav.js loads (id: no-theme-flash).
+    document.documentElement.setAttribute("data-theme", localStorage.getItem("theme") || "dark");
+  </script>
   <meta name="description" content="Build a fully compatible custom PC or shop individual computer parts — PC Builder checks CPU, motherboard, RAM, and GPU compatibility before you buy." />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="PC Builder" />

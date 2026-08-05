@@ -68,12 +68,32 @@ function renderThemeToggle() {
   return `
     <button
       id="theme-toggle"
-      class="theme-toggle"
+      class="theme-toggle-switch"
       type="button"
       aria-label="Toggle theme"
       title="Toggle theme"
     >
-      🌙
+      <span class="theme-switch-track">
+        <span class="theme-switch-icon theme-switch-icon-sun">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </span>
+        <span class="theme-switch-icon theme-switch-icon-moon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </span>
+        <span class="theme-switch-thumb"></span>
+      </span>
     </button>
   `;
 }
@@ -228,52 +248,117 @@ async function loadCategoriesMenu() {
     listEl.innerHTML = result.data
       .map(
         (category) => `
-          <a href="/products.html?category_id=${category.id}" class="categories-dropdown-item" data-category-id="${category.id}" data-category-name="${escapeHtml(category.name)}">
-            <span>${escapeHtml(category.name)}</span>
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
-          </a>
+          <div class="category-item-wrapper" data-category-id="${category.id}">
+            <div class="categories-dropdown-item" data-category-id="${category.id}" data-category-name="${escapeHtml(category.name)}">
+              <a href="/products.html?category_id=${category.id}" class="category-item-link">
+                ${escapeHtml(category.name)}
+              </a>
+              <button type="button" class="category-expand-btn" aria-label="Toggle ${escapeHtml(category.name)}">
+                <svg class="categories-dropdown-chevron" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </button>
+            </div>
+            <div class="category-sub-accordion hidden" id="category-sub-${category.id}">
+              <div class="category-sub-content">
+                <div class="state-message">Loading...</div>
+              </div>
+            </div>
+          </div>
         `
       )
       .join("");
-    const items = listEl.querySelectorAll(".categories-dropdown-item");
 
-    items.forEach((item) => {
+    const wrappers = listEl.querySelectorAll(".category-item-wrapper");
+    wrappers.forEach((wrapper) => {
+      const itemEl = wrapper.querySelector(".categories-dropdown-item");
+      const categoryId = wrapper.dataset.categoryId;
 
-      item.addEventListener("mouseenter", () => {
-        if (window.innerWidth > 700) {
-          showCategoryPanel(item);
-        }
-      });
+      itemEl.addEventListener("mouseenter", () => showCategoryPanel(itemEl));
+      itemEl.addEventListener("focusin", () => showCategoryPanel(itemEl));
 
-      item.addEventListener("focus", () => {
-        if (window.innerWidth > 700) {
-          showCategoryPanel(item);
-        }
-      });
-
-      item.addEventListener("click", (event) => {
+      itemEl.addEventListener("click", (e) => {
         if (window.innerWidth <= 700) {
-          event.preventDefault();
-          showCategoryPanel(item);
+          e.preventDefault();
+          e.stopPropagation();
+          toggleMobileAccordion(wrapper, categoryId);
         }
       });
-
     });
 
-    if (items[0] && window.innerWidth > 700) {
-      showCategoryPanel(items[0]);
-    }
-
+    const firstItem = listEl.querySelector(".categories-dropdown-item");
+    if (firstItem) showCategoryPanel(firstItem);
   } catch (error) {
     listEl.innerHTML = `<div class="state-message">Could not load categories.</div>`;
   }
 }
 
+async function toggleMobileAccordion(wrapper, categoryId) {
+  const accordion = wrapper.querySelector(".category-sub-accordion");
+  if (!accordion) return;
+
+  const isExpanded = wrapper.classList.contains("expanded");
+
+  const listEl = document.getElementById("categories-dropdown-list");
+  if (listEl) {
+    listEl.querySelectorAll(".category-item-wrapper.expanded").forEach((other) => {
+      if (other !== wrapper) {
+        other.classList.remove("expanded");
+        const otherAccordion = other.querySelector(".category-sub-accordion");
+        if (otherAccordion) otherAccordion.classList.add("hidden");
+      }
+    });
+  }
+
+  if (isExpanded) {
+    wrapper.classList.remove("expanded");
+    accordion.classList.add("hidden");
+  } else {
+    wrapper.classList.add("expanded");
+    accordion.classList.remove("hidden");
+
+    const subContent = wrapper.querySelector(".category-sub-content");
+    const itemEl = wrapper.querySelector(".categories-dropdown-item");
+    const categoryName = itemEl ? itemEl.dataset.categoryName : "";
+
+    if (categoryBrandsCache[categoryId]) {
+      renderMobileSubContent(subContent, categoryId, categoryName, categoryBrandsCache[categoryId]);
+    } else {
+      subContent.innerHTML = `<div class="state-message">Loading...</div>`;
+      try {
+        const result = await apiRequest(`/products?category_id=${categoryId}`, { auth: false });
+        const brandsMap = new Map();
+        result.data.forEach((product) => {
+          if (product.brand) brandsMap.set(product.brand.id, product.brand.name);
+        });
+        const brands = Array.from(brandsMap, ([id, name]) => ({ id, name }));
+        categoryBrandsCache[categoryId] = brands;
+        renderMobileSubContent(subContent, categoryId, categoryName, brands);
+      } catch (err) {
+        subContent.innerHTML = `<div class="state-message">Could not load.</div>`;
+      }
+    }
+  }
+}
+
+function renderMobileSubContent(subContent, categoryId, categoryName, brands) {
+  if (!subContent) return;
+  let html = `<a href="/products.html?category_id=${categoryId}" class="category-sub-link category-sub-link-all">View all ${escapeHtml(categoryName)}</a>`;
+  if (brands.length) {
+    html += brands
+      .map(
+        (b) =>
+          `<a href="/products.html?category_id=${categoryId}&brand_id=${b.id}" class="category-sub-link">${escapeHtml(b.name)}</a>`
+      )
+      .join("");
+  }
+  subContent.innerHTML = html;
+}
+
 const categoryBrandsCache = {};
 
 function showCategoryPanel(item) {
+  if (window.innerWidth <= 700) return;
   const listEl = document.getElementById("categories-dropdown-list");
   const panel = document.getElementById("categories-dropdown-panel");
   const titleEl = document.getElementById("categories-dropdown-panel-title");
@@ -412,7 +497,8 @@ function applyTheme(theme) {
 
   const btn = document.getElementById("theme-toggle");
   if (btn) {
-    btn.textContent = theme === "dark" ? "☀️" : "🌙";
+    btn.setAttribute("aria-label", `Switch to ${theme === "dark" ? "light" : "dark"} mode`);
+    btn.setAttribute("title", `Switch to ${theme === "dark" ? "light" : "dark"} mode`);
   }
 }
 

@@ -1,8 +1,13 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script>
+    // Set the saved theme before first paint so returning users with "light"
+    // saved don't see a flash of the dark theme while nav.js loads (id: no-theme-flash).
+    document.documentElement.setAttribute("data-theme", localStorage.getItem("theme") || "dark");
+  </script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <title>Admin: Edit Product — PC Builder</title>
   <link rel="stylesheet" href="../css/main.css" />
