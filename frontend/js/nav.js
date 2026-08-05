@@ -8,7 +8,11 @@ function renderNavbar() {
   // Root-relative paths on purpose: this navbar is rendered from both the site
   // root (e.g. products.html) and one level deep (admin/*.html), so relative
   // paths like "products.html" would resolve to "admin/products.html" there.
-  const authHtml = loggedIn ? renderCartIcon() + renderProfileMenu(user) : renderGuestActions();
+  const authHtml = renderThemeToggle() +
+    (loggedIn
+      ? renderCartIcon() + renderProfileMenu(user)
+      : renderGuestActions());
+
 
   const memberLinks = loggedIn ? `<a href="/build.html">Build a PC</a>` : "";
 
@@ -32,6 +36,7 @@ function renderNavbar() {
 
   wireNavbarSearch();
   wireCategoriesMenu();
+  wireThemeToggle();
 
   if (loggedIn) {
     wireProfileMenu();
@@ -57,6 +62,19 @@ function renderNavbarSearch() {
         </span>
       </div>
     </form>
+  `;
+}
+function renderThemeToggle() {
+  return `
+    <button
+      id="theme-toggle"
+      class="theme-toggle"
+      type="button"
+      aria-label="Toggle theme"
+      title="Toggle theme"
+    >
+      🌙
+    </button>
   `;
 }
 
@@ -219,14 +237,35 @@ async function loadCategoriesMenu() {
         `
       )
       .join("");
-
     const items = listEl.querySelectorAll(".categories-dropdown-item");
+
     items.forEach((item) => {
-      item.addEventListener("mouseenter", () => showCategoryPanel(item));
-      item.addEventListener("focus", () => showCategoryPanel(item));
+
+      item.addEventListener("mouseenter", () => {
+        if (window.innerWidth > 700) {
+          showCategoryPanel(item);
+        }
+      });
+
+      item.addEventListener("focus", () => {
+        if (window.innerWidth > 700) {
+          showCategoryPanel(item);
+        }
+      });
+
+      item.addEventListener("click", (event) => {
+        if (window.innerWidth <= 700) {
+          event.preventDefault();
+          showCategoryPanel(item);
+        }
+      });
+
     });
 
-    if (items[0]) showCategoryPanel(items[0]);
+    if (items[0] && window.innerWidth > 700) {
+      showCategoryPanel(items[0]);
+    }
+
   } catch (error) {
     listEl.innerHTML = `<div class="state-message">Could not load categories.</div>`;
   }
@@ -365,6 +404,38 @@ async function handleLogout() {
     Auth.clearSession();
     window.location.href = "/login.html";
   }
+}
+const THEME_KEY = "theme";
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+
+  const btn = document.getElementById("theme-toggle");
+  if (btn) {
+    btn.textContent = theme === "dark" ? "☀️" : "🌙";
+  }
+}
+
+function loadTheme() {
+  const saved = localStorage.getItem(THEME_KEY) || "dark";
+  applyTheme(saved);
+}
+
+function wireThemeToggle() {
+  loadTheme();
+
+  const btn = document.getElementById("theme-toggle");
+  if (!btn) return;
+
+  btn.addEventListener("click", () => {
+    const current = document.documentElement.getAttribute("data-theme") || "dark";
+
+    const next = current === "dark" ? "light" : "dark";
+
+    localStorage.setItem(THEME_KEY, next);
+
+    applyTheme(next);
+  });
 }
 
 document.addEventListener("DOMContentLoaded", renderNavbar);
