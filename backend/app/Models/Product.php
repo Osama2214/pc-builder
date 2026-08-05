@@ -25,7 +25,7 @@ class Product extends Model
         'sale_price',
         'discount',
         'stock',
-        'thumbnail',
+        'thumbnail', 
         'weight',
         'warranty_months',
         'is_active',
